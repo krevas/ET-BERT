@@ -21,7 +21,7 @@ class BertTarget(MlmTarget):
             memory_bank: [batch_size x seq_length x hidden_size]
             tgt: tuple with tgt_mlm [batch_size x seq_length] and tgt_nsp [batch_size]
 
-			output¼´´Ë´¦µÄmemory_bank
+			output memory_bank
 
         Returns:
             loss_mlm: Masked language model loss.

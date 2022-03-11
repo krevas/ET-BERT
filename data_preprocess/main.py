@@ -1,38 +1,27 @@
 #!/usr/bin/python3
 #-*- coding:utf-8 -*-
 
-import scapy.all as scapy
-import binascii
-from tokenizers import Tokenizer, models, pre_tokenizers, decoders, trainers, processors
-import json
 import os
 import csv
-from sklearn.model_selection import StratifiedShuffleSplit
-import numpy as np
-from flowcontainer.extractor import extract
-import tqdm
+import json
 import random
+import binascii
 
-random.seed(40)
+import tqdm
+import numpy as np
+import scapy.all as scapy
+from flowcontainer.extractor import extract
+from sklearn.model_selection import StratifiedShuffleSplit
+from tokenizers import Tokenizer, models, pre_tokenizers, decoders, trainers, processors
 
-pcap_dir = "I:\\dataset\\"
-tls_date = [20210301,20210808]
-pcap_name = "app_A.pcap"
-#pcap_name = "merge.pcap"
 
-word_dir = "I:/corpora/"
-word_name = "encrypted_tls13_burst.txt"
 
-vocab_dir = "I:/models/"
-vocab_name = "encryptd_vocab_all.txt"
-
-def pcap_preprocess():
-    
-    start_date = tls_date[0]
-    end_date = tls_date[1]
+def pcap_preprocess(main_pcap_dir, date):
+    start_date = date[0]
+    end_date = date[1]
     packet_num = 0
     while start_date <= end_date:
-        data_dir = tls13_pcap_dir + str(start_date) + "\\"
+        data_dir = main_pcap_dir + str(start_date) + "\\"
         p_num = preprocess(data_dir)
         packet_num += p_num
         start_date += 1
@@ -204,7 +193,17 @@ def split_cap(pcap_file,pcap_name):
     return 0
 
 if __name__ == '__main__':
-    #preprocess(pcap_dir)
-    # build vocab
-    build_BPE()
-    build_vocab()
+    random.seed(40)
+
+    pcap_dir = "I:\\dataset\\"
+    date = [20210301,20210808]
+
+    word_dir = "I:/corpora/"
+    word_name = "encrypted_tls13_burst.txt"
+
+    vocab_dir = "I:/models/"
+    vocab_name = "encryptd_vocab_all.txt"
+
+    pcap_preprocess(pcap_dir, date)
+    # build_BPE()
+    # build_vocab()
