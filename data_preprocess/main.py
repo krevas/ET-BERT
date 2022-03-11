@@ -11,36 +11,41 @@ import tqdm
 import numpy as np
 import scapy.all as scapy
 from flowcontainer.extractor import extract
-from sklearn.model_selection import StratifiedShuffleSplit
 from tokenizers import Tokenizer, models, pre_tokenizers, decoders, trainers, processors
 
 
 
-def pcap_preprocess(main_pcap_dir, date):
+def pcap_preprocess(main_pcap_dir, word_output_file):
+    packet_num = preprocess(main_pcap_dir, word_output_file)
+    print(f"used packets {packet_num}")
+    print(f"finish generating {main_pcap_dir} pretrain dataset.\n please check in {word_output_file}")
+    return 0
+
+def pcap_preprocess_tls13(main_pcap_dir, word_output_file, date):
     start_date = date[0]
     end_date = date[1]
     packet_num = 0
     while start_date <= end_date:
-        data_dir = main_pcap_dir + str(start_date) + "\\"
-        p_num = preprocess(data_dir)
+        data_dir = os.path.join(main_pcap_dir, str(start_date))
+        p_num = preprocess(data_dir, word_output_file)
         packet_num += p_num
         start_date += 1
-    print("used packets %d"%packet_num)
-    print("finish generating tls13 pretrain dataset.\n please check in %s"%word_dir)
+    print(f"used packets {packet_num}")
+    print(f"finish generating tls13 pretrain dataset.\n please check in {word_output_file}")
     return 0
 
-def preprocess(pcap_dir):
-    print("now pre-process pcap_dir is %s"%pcap_dir)
+def preprocess(pcap_dir, word_output_file):
+    print(f"now pre-process pcap_dir is {pcap_dir}")
     
     packet_num = 0
     n = 0
     
     for parent,dirs,files in os.walk(pcap_dir):
         for file in files:
-            if "pcapng" not in file and tls13_name in file:
+            if "pcapng" not in file:
                 n += 1
-                pcap_name = parent + "\\" + file
-                print("No.%d pacp is processed ... %s ..."%(n,file))
+                pcap_name = os.path.join(parent, file)
+                print(f"No.{n} pacp is processed ... {file} ...")
                 packets = scapy.rdpcap(pcap_name)
                 #word_packet = b''
                 words_txt = []
@@ -74,11 +79,11 @@ def preprocess(pcap_dir):
                     words_txt.append("\n")
 
                 
-                result_file = open(word_dir + word_name, 'a')
+                result_file = open(word_output_file, 'a')
                 for words in words_txt:
                     result_file.write(words)
                 result_file.close()
-    print("finish preprocessing %d pcaps"%n)
+    print(f"finish preprocessing {n} pcaps")
     return packet_num
 
 def cut(obj, sec):
@@ -90,7 +95,7 @@ def cut(obj, sec):
         result = [obj[i:i+sec+remanent_count] for i in range(0,len(obj),sec+remanent_count)]
     return result
 
-def build_BPE():
+def build_BPE(word_output_file_list):
     # generate source dictionary,0-65535
     num_count = 65536
     not_change_string_count = 5
@@ -113,13 +118,13 @@ def build_BPE():
 
     # And then train
     trainer = trainers.WordPieceTrainer(vocab_size=65536, min_frequency=2)
-    tokenizer.train([word_dir+word_name, word_dir+word_name_iscx], trainer=trainer)
+    tokenizer.train(word_output_file_list, trainer=trainer)
 
     # And Save it
     tokenizer.save("wordpiece.tokenizer.json", pretty=True)
     return 0
 
-def build_vocab():
+def build_vocab(vocab_output_file):
     json_file = open("wordpiece.tokenizer.json",'r')
     json_content = json_file.read()
     json_file.close()
@@ -127,7 +132,7 @@ def build_vocab():
     vocab_txt = ["[PAD]","[SEP]","[CLS]","[UNK]","[MASK]"]
     for item in vocab_json['model']['vocab']:
         vocab_txt.append(item) # append key of vocab_json
-    with open(vocab_dir+vocab_name,'w') as f:
+    with open(vocab_output_file, 'w') as f:
         for word in vocab_txt:
             f.write(word+"\n")
     return 0
@@ -167,10 +172,10 @@ def read_pcap_flow(pcap_file):
     flow_data_string = '' 
 
     if len(packets) < 5:
-        print("preprocess flow %s but this flow has less than 5 packets."%pcap_file)
+        print(f"preprocess flow {pcap_file} but this flow has less than 5 packets.")
         return -1
 
-    print("preprocess flow %s" % pcap_file)
+    print(f"preprocess flow {pcap_file}")
     for packet in packets:
         packet_count += 1
         if packet_count == 5:
@@ -195,15 +200,13 @@ def split_cap(pcap_file,pcap_name):
 if __name__ == '__main__':
     random.seed(40)
 
-    pcap_dir = "I:\\dataset\\"
-    date = [20210301,20210808]
+    pcap_dir = "./corpora/ISCX-2016-VPN"
+    # date = [20210301,20210808]
 
-    word_dir = "I:/corpora/"
-    word_name = "encrypted_tls13_burst.txt"
+    word_output_file = "./corpora/encrypted_iscx_burst.txt"
+    vocab_output_file = "./models/encryptd_vocab_all.txt"
 
-    vocab_dir = "I:/models/"
-    vocab_name = "encryptd_vocab_all.txt"
+    pcap_preprocess(pcap_dir, word_output_file)
 
-    pcap_preprocess(pcap_dir, date)
-    # build_BPE()
-    # build_vocab()
+    # build_BPE([word_output_file])
+    # build_vocab(vocab_output_file)
