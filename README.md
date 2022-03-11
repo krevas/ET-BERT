@@ -59,24 +59,24 @@ wget -O pretrained_model.bin https://drive.google.com/file/d/1r1yE34dU2W8zSqx1Fk
 
 After obtaining the pre-trained model, ET-BERT could be applied to the spetic task by fine-tuning with labeled network traffic:
 ```
-python3 fine-tuning/run_classifier.py --pretrained_model_path models/pre-trained_model.bin \
-                                   --vocab_path models/encryptd_vocab.txt \
-                                   --train_path datasets/cstnet-tls1.3/packet/train_dataset.tsv \
-                                   --dev_path datasets/cstnet-tls1.3/packet/valid_dataset.tsv \
-                                   --test_path datasets/cstnet-tls1.3/packet/test_dataset.tsv \
-                                   --epochs_num 10 --batch_size 32 --embedding word_pos_seg \
-                                   --encoder transformer --mask fully_visible \
-                                   --seq_length 128 --learning_rate 2e-5
+python3 finetuning.py --pretrained_model_path models/pre-trained_model.bin \
+                      --vocab_path models/encryptd_vocab.txt \
+                      --train_path datasets/cstnet-tls1.3/packet/train_dataset.tsv \
+                      --dev_path datasets/cstnet-tls1.3/packet/valid_dataset.tsv \
+                      --test_path datasets/cstnet-tls1.3/packet/test_dataset.tsv \
+                      --epochs_num 10 --batch_size 32 --embedding word_pos_seg \
+                      --encoder transformer --mask fully_visible \
+                      --seq_length 128 --learning_rate 2e-5
 ```
 
 The default path of the fine-tuned classifier model is `models/finetuned_model.bin`. Then you can do inference with the fine-tuned model:
 ```
-python3 inference/run_classifier_infer.py --load_model_path models/finetuned_model.bin \
-                                          --vocab_path models/encryptd_vocab.txt \
-                                          --test_path datasets/cstnet-tls1.3/packet/nolabel_test_dataset.tsv \
-                                          --prediction_path datasets/cstnet-tls1.3/packet/prediction.tsv \
-                                          --labels_num 120 \
-                                          --embedding word_pos_seg --encoder transformer --mask fully_visible
+python3 inference.py --load_model_path models/finetuned_model.bin \
+                     --vocab_path models/encryptd_vocab.txt \
+                     --test_path datasets/cstnet-tls1.3/packet/nolabel_test_dataset.tsv \
+                     --prediction_path datasets/cstnet-tls1.3/packet/prediction.tsv \
+                     --labels_num 120 \
+                     --embedding word_pos_seg --encoder transformer --mask fully_visible
 ```
 <br/>
 
@@ -95,7 +95,7 @@ To reproduce the steps necessary to pre-train ET-BERT on network traffic data, f
 ### Pre-training
 To reproduce the steps necessary to finetune ET-BERT on labeled data, run `pretrain.py` to pre-train.
 ```
-   python3 pre-training/pretrain.py --dataset_path dataset.pt --vocab_path models/encryptd_vocab.txt \
+   python3 pretrain.py --dataset_path dataset.pt --vocab_path models/encryptd_vocab.txt \
                        --output_model_path models/pre-trained_model.bin \
                        --world_size 8 --gpu_ranks 0 1 2 3 4 5 6 7 \
                        --total_steps 500000 --save_checkpoint_steps 10000 --batch_size 32 \
