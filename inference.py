@@ -44,15 +44,21 @@ def read_dataset(args, path):
             line = line.strip().split("\t")
             if "text_b" not in columns:  # Sentence classification.
                 text_a = line[columns["text_a"]]
-                src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a))
+                src = args.tokenizer.convert_tokens_to_ids(
+                    [CLS_TOKEN] + args.tokenizer.tokenize(text_a)
+                )
                 seg = [1] * len(src)
             else:  # Sentence pair classification.
                 text_a, text_b = line[columns["text_a"]], line[columns["text_b"]]
-                src_a = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN])
-                src_b = args.tokenizer.convert_tokens_to_ids(args.tokenizer.tokenize(text_b) + [SEP_TOKEN])
+                src_a = args.tokenizer.convert_tokens_to_ids(
+                    [CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN]
+                )
+                src_b = args.tokenizer.convert_tokens_to_ids(
+                    args.tokenizer.tokenize(text_b) + [SEP_TOKEN]
+                )
                 src = src_a + src_b
                 seg = [1] * len(src_a) + [2] * len(src_b)
-            
+
             if len(src) > args.seq_length:
                 src = src[: args.seq_length]
                 seg = seg[: args.seq_length]
@@ -65,26 +71,40 @@ def read_dataset(args, path):
 
 
 def main():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
     infer_opts(parser)
 
-    parser.add_argument("--pooling", choices=["mean", "max", "first", "last"], default="first",
-                        help="Pooling type.")
+    parser.add_argument(
+        "--pooling",
+        choices=["mean", "max", "first", "last"],
+        default="first",
+        help="Pooling type.",
+    )
 
-    parser.add_argument("--labels_num", type=int, required=True,
-                        help="Number of prediction labels.")
+    parser.add_argument(
+        "--labels_num", type=int, required=True, help="Number of prediction labels."
+    )
 
-    parser.add_argument("--tokenizer", choices=["bert", "char", "space"], default="bert",
-                        help="Specify the tokenizer." 
-                             "Original Google BERT uses bert tokenizer on Chinese corpus."
-                             "Char tokenizer segments sentences into characters."
-                             "Space tokenizer segments sentences into words according to space."
-                             )
+    parser.add_argument(
+        "--tokenizer",
+        choices=["bert", "char", "space"],
+        default="bert",
+        help="Specify the tokenizer."
+        "Original Google BERT uses bert tokenizer on Chinese corpus."
+        "Char tokenizer segments sentences into characters."
+        "Space tokenizer segments sentences into words according to space.",
+    )
 
-    parser.add_argument("--output_logits", action="store_true", help="Write logits to output file.")
-    parser.add_argument("--output_prob", action="store_true", help="Write probabilities to output file.")
-    
+    parser.add_argument(
+        "--output_logits", action="store_true", help="Write logits to output file."
+    )
+    parser.add_argument(
+        "--output_prob", action="store_true", help="Write probabilities to output file."
+    )
+
     args = parser.parse_args()
 
     # Load the hyperparameters from the config file.
@@ -102,7 +122,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(device)
     if torch.cuda.device_count() > 1:
-        print("{} GPUs are available. Let's use them.".format(torch.cuda.device_count()))
+        print(
+            "{} GPUs are available. Let's use them.".format(torch.cuda.device_count())
+        )
         model = torch.nn.DataParallel(model)
 
     dataset = read_dataset(args, args.test_path)
@@ -129,13 +151,13 @@ def main():
             seg_batch = seg_batch.to(device)
             with torch.no_grad():
                 _, logits = model(src_batch, None, seg_batch)
-            
+
             pred = torch.argmax(logits, dim=1)
             pred = pred.cpu().numpy().tolist()
             prob = nn.Softmax(dim=1)(logits)
             logits = logits.cpu().numpy().tolist()
             prob = prob.cpu().numpy().tolist()
-            
+
             for j in range(len(pred)):
                 f.write(str(pred[j]))
                 if args.output_logits:

@@ -48,4 +48,12 @@ class BertTarget(MlmTarget):
         loss_tov = self.criterion(self.softmax(output_tov), tgt_tov)
         correct_tov = self.softmax(output_tov).argmax(dim=-1).eq(tgt_tov).sum()
 
-        return loss_mlm, loss_nsp, loss_tov, correct_mlm, correct_nsp, correct_tov, denominator
+        return (
+            loss_mlm,
+            loss_nsp,
+            loss_tov,
+            correct_mlm,
+            correct_nsp,
+            correct_tov,
+            denominator,
+        )

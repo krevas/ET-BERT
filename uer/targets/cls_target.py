@@ -9,6 +9,7 @@ from uer.utils.act_fun import gelu
 class ClsTarget(nn.Module):
     """
     """
+
     def __init__(self, args, vocab_size):
         super(ClsTarget, self).__init__()
         self.vocab_size = vocab_size
@@ -19,7 +20,6 @@ class ClsTarget(nn.Module):
         self.linear_2 = nn.Linear(args.hidden_size, args.labels_num)
         self.softmax = nn.LogSoftmax(dim=-1)
         self.criterion = nn.NLLLoss()
-
 
     def forward(self, memory_bank, tgt):
         """

@@ -7,14 +7,25 @@ from packaging import version
 def gelu(x):
     return x * 0.5 * (1.0 + torch.erf(x / math.sqrt(2.0)))
 
+
 def gelu_fast(x):
-    return 0.5 * x * (1.0 + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0))))
+    return (
+        0.5
+        * x
+        * (
+            1.0
+            + torch.tanh(math.sqrt(2.0 / math.pi) * (x + 0.044715 * torch.pow(x, 3.0)))
+        )
+    )
+
 
 def relu(x):
     return F.relu(x)
 
+
 def linear(x):
     return x
+
 
 def _silu_python(x):
     """
@@ -26,7 +37,7 @@ def _silu_python(x):
     """
     return x * torch.sigmoid(x)
 
-  
+
 if version.parse(torch.__version__) < version.parse("1.7"):
     silu = _silu_python
 else:

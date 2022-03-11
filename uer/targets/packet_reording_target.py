@@ -9,6 +9,7 @@ from uer.utils.act_fun import gelu
 class NspTarget(nn.Module):
     """
     """
+
     def __init__(self, args, vocab_size):
         super(NspTarget, self).__init__()
         self.vocab_size = vocab_size
@@ -17,7 +18,6 @@ class NspTarget(nn.Module):
         self.linear = nn.Linear(args.hidden_size, args.labels_num)
         self.softmax = nn.LogSoftmax(dim=-1)
         self.criterion = nn.NLLLoss()
-
 
     def forward(self, memory_bank, tgt):
         """

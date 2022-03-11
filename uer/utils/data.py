@@ -9,15 +9,24 @@ from uer.utils.misc import count_lines
 from uer.utils.seed import set_seed
 
 
-def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length):
+def mask_seq(
+    src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length
+):
     vocab = tokenizer.vocab
 
     for i in range(len(src) - 1, -1, -1):
         if src[i] != PAD_ID:
             break
-    src_no_pad = src[:i + 1]
+    src_no_pad = src[: i + 1]
 
-    tokens_index, src_no_pad = create_index(src_no_pad, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length)
+    tokens_index, src_no_pad = create_index(
+        src_no_pad,
+        tokenizer,
+        whole_word_masking,
+        span_masking,
+        span_geo_prob,
+        span_max_length,
+    )
     if len(src_no_pad) < len(src):
         src = src_no_pad + (len(src) - len(src_no_pad)) * [PAD_ID]
     else:
@@ -44,7 +53,12 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
                 elif prob < 0.9:
                     while True:
                         rdi = random.randint(1, len(vocab) - 1)
-                        if rdi not in [vocab.get(CLS_TOKEN), vocab.get(SEP_TOKEN), vocab.get(MASK_TOKEN), PAD_ID]:
+                        if rdi not in [
+                            vocab.get(CLS_TOKEN),
+                            vocab.get(SEP_TOKEN),
+                            vocab.get(MASK_TOKEN),
+                            PAD_ID,
+                        ]:
                             break
                     src[i + j] = rdi
         elif span_masking:
@@ -64,7 +78,12 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
                 for j in range(span_len):
                     while True:
                         rdi = random.randint(1, len(vocab) - 1)
-                        if rdi not in [vocab.get(CLS_TOKEN), vocab.get(SEP_TOKEN), vocab.get(MASK_TOKEN), PAD_ID]:
+                        if rdi not in [
+                            vocab.get(CLS_TOKEN),
+                            vocab.get(SEP_TOKEN),
+                            vocab.get(MASK_TOKEN),
+                            PAD_ID,
+                        ]:
                             break
                     src[i + j] = rdi
         else:
@@ -77,14 +96,21 @@ def mask_seq(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, sp
             elif prob < 0.9:
                 while True:
                     rdi = random.randint(1, len(vocab) - 1)
-                    if rdi not in [vocab.get(CLS_TOKEN), vocab.get(SEP_TOKEN), vocab.get(MASK_TOKEN), PAD_ID]:
+                    if rdi not in [
+                        vocab.get(CLS_TOKEN),
+                        vocab.get(SEP_TOKEN),
+                        vocab.get(MASK_TOKEN),
+                        PAD_ID,
+                    ]:
                         break
                 src[i] = rdi
     tgt_mlm = sorted(tgt_mlm, key=lambda x: x[0])
     return src, tgt_mlm
 
 
-def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length):
+def create_index(
+    src, tokenizer, whole_word_masking, span_masking, span_geo_prob, span_max_length
+):
     tokens_index = []
     span_end_position = -1
     vocab = tokenizer.vocab
@@ -98,8 +124,13 @@ def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob
         if src[-1] == vocab.get(SEP_TOKEN):
             src = src[:-1]
             has_sep = True
-        sentence = "".join(tokenizer.convert_ids_to_tokens(src)).replace('[UNK]', '').replace('##', '')
+        sentence = (
+            "".join(tokenizer.convert_ids_to_tokens(src))
+            .replace("[UNK]", "")
+            .replace("##", "")
+        )
         import jieba
+
         wordlist = jieba.cut(sentence)
         if has_cls:
             src_wwm += [vocab.get(CLS_TOKEN)]
@@ -107,7 +138,7 @@ def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob
             position = len(src_wwm)
             src_wwm += tokenizer.convert_tokens_to_ids(tokenizer.tokenize(word))
             if len(src_wwm) < src_length:
-                tokens_index.append([position, len(src_wwm)-position])
+                tokens_index.append([position, len(src_wwm) - position])
         if has_sep:
             src_wwm += [vocab.get(SEP_TOKEN)]
         if len(src_wwm) > src_length:
@@ -116,7 +147,11 @@ def create_index(src, tokenizer, whole_word_masking, span_masking, span_geo_prob
             src = src_wwm
     else:
         for (i, token) in enumerate(src):
-            if token == vocab.get(CLS_TOKEN) or token == vocab.get(SEP_TOKEN) or token == PAD_ID:
+            if (
+                token == vocab.get(CLS_TOKEN)
+                or token == vocab.get(SEP_TOKEN)
+                or token == PAD_ID
+            ):
                 continue
             if not span_masking:
                 tokens_index.append([i])
@@ -141,7 +176,7 @@ def get_span_len(max_span_len, p):
             geo_prob *= p
             geo_prob_cum.append(geo_prob_cum[-1] + geo_prob)
         else:
-            geo_prob *= (1 - p)
+            geo_prob *= 1 - p
             geo_prob_cum.append(geo_prob_cum[-1] + geo_prob)
 
     prob = geo_prob_cum[-1] * random.random()
@@ -157,7 +192,7 @@ def merge_dataset(dataset_path, workers_num):
     for i in range(workers_num):
         tmp_dataset_reader = open("dataset-tmp-" + str(i) + ".pt", "rb")
         while True:
-            tmp_data = tmp_dataset_reader.read(2^20)
+            tmp_data = tmp_dataset_reader.read(2 ^ 20)
             if tmp_data:
                 dataset_writer.write(tmp_data)
             else:
@@ -205,7 +240,7 @@ class Dataset(object):
         """
         lines_num = count_lines(self.corpus_path)
         print("Starting %d workers for building datasets ... " % workers_num)
-        assert (workers_num >= 1)
+        assert workers_num >= 1
         if workers_num == 1:
             self.worker(0, 0, lines_num)
         else:
@@ -225,7 +260,9 @@ class Dataset(object):
 
 
 class DataLoader(object):
-    def __init__(self, args, dataset_path, batch_size, proc_id, proc_num, shuffle=False):
+    def __init__(
+        self, args, dataset_path, batch_size, proc_id, proc_num, shuffle=False
+    ):
         self.tokenizer = args.tokenizer
         self.batch_size = batch_size
         self.instances_buffer_size = args.instances_buffer_size
@@ -316,7 +353,9 @@ class BertDataset(Dataset):
                         # Clear buffer.
                         docs_buffer = []
                     continue
-                sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
+                sentence = self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(line)
+                )
                 if len(sentence) > 0:
                     document.append(sentence)
 
@@ -369,7 +408,9 @@ class BertDataset(Dataset):
                         target_b_length = target_seq_length - len(tokens_a)
 
                         for _ in range(10):
-                            random_document_index = random.randint(0, len(all_documents) - 1)
+                            random_document_index = random.randint(
+                                0, len(all_documents) - 1
+                            )
                             if random_document_index != document_index:
                                 break
 
@@ -380,9 +421,9 @@ class BertDataset(Dataset):
                             if len(tokens_b) >= target_b_length:
                                 break
 
-                        #num_unused_segments = len(current_chunk) - a_end
-                        #i -= num_unused_segments
-                        #print("RANDOM --")
+                        # num_unused_segments = len(current_chunk) - a_end
+                        # i -= num_unused_segments
+                        # print("RANDOM --")
                     elif len(current_chunk) > 1 and random_num > 0.7:
                         is_tov = 1
 
@@ -391,22 +432,25 @@ class BertDataset(Dataset):
 
                         tov_num = range(0, len(tokens_b))
                         random_tov = random.sample(tov_num, 20)
-                        for i in range(0,20,2):
-                            tokens_b[random_tov[i]], tokens_b[random_tov[i+1]] = tokens_b[random_tov[i+1]], tokens_b[random_tov[i]]
+                        for i in range(0, 20, 2):
+                            tokens_b[random_tov[i]], tokens_b[random_tov[i + 1]] = (
+                                tokens_b[random_tov[i + 1]],
+                                tokens_b[random_tov[i]],
+                            )
 
-                        #num_unused_segments = len(current_chunk) - a_end
-                        #i -= num_unused_segments
-                        #print("RANDOM ++--")
+                        # num_unused_segments = len(current_chunk) - a_end
+                        # i -= num_unused_segments
+                        # print("RANDOM ++--")
                     else:
                         for j in range(a_end, len(current_chunk)):
                             tokens_b.extend(current_chunk[j])
-                        #print("RANDOM ++")
-                        #if random_num > 1:
+                        # print("RANDOM ++")
+                        # if random_num > 1:
                         #    print("NORMAL +--")
                         #    num_unused_segments = len(current_chunk) - a_end
                         #    i -= num_unused_segments
 
-                        '''
+                        """
                         ### add tov
                         if random_num > 0.75:
                             print("NORMAL +--")
@@ -450,7 +494,7 @@ class BertDataset(Dataset):
                             i -= num_unused_segments
                         else:
                             print("NORMAL ++")
-                        '''
+                        """
 
                     truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
 
@@ -467,7 +511,14 @@ class BertDataset(Dataset):
                         src.append(PAD_ID)
 
                     if not self.dynamic_masking:
-                        src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                        src, tgt_mlm = mask_seq(
+                            src,
+                            self.tokenizer,
+                            self.whole_word_masking,
+                            self.span_masking,
+                            self.span_geo_prob,
+                            self.span_max_length,
+                        )
                         instance = (src, tgt_mlm, is_random_next, seg_pos, is_tov)
                     else:
                         instance = (src, is_random_next, seg_pos, is_tov)
@@ -485,9 +536,9 @@ class BertDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -506,24 +557,38 @@ class BertDataLoader(DataLoader):
                     for mask in ins[1]:
                         tgt_mlm[-1][mask[0]] = mask[1]
                     is_next.append(ins[2])
-                    seg.append([1] * ins[3][0] + [2] * (ins[3][1] - ins[3][0]) + [PAD_ID] * (len(ins[0]) - ins[3][1]))
+                    seg.append(
+                        [1] * ins[3][0]
+                        + [2] * (ins[3][1] - ins[3][0])
+                        + [PAD_ID] * (len(ins[0]) - ins[3][1])
+                    )
                 else:
-                    src_single, tgt_mlm_single = mask_seq(ins[0], self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                    src_single, tgt_mlm_single = mask_seq(
+                        ins[0],
+                        self.tokenizer,
+                        self.whole_word_masking,
+                        self.span_masking,
+                        self.span_geo_prob,
+                        self.span_max_length,
+                    )
                     masked_words_num += len(tgt_mlm_single)
                     src.append(src_single)
                     tgt_mlm.append([0] * len(ins[0]))
                     for mask in tgt_mlm_single:
                         tgt_mlm[-1][mask[0]] = mask[1]
                     is_next.append(ins[1])
-                    seg.append([1] * ins[2][0] + [2] * (ins[2][1] - ins[2][0]) + [PAD_ID] * (len(ins[0]) - ins[2][1]))
+                    seg.append(
+                        [1] * ins[2][0]
+                        + [2] * (ins[2][1] - ins[2][0])
+                        + [PAD_ID] * (len(ins[0]) - ins[2][1])
+                    )
 
             if masked_words_num == 0:
                 continue
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt_mlm), \
-                torch.LongTensor(is_next), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt_mlm), torch.LongTensor(
+                is_next
+            ), torch.LongTensor(seg)
 
 
 class MlmDataset(Dataset):
@@ -546,7 +611,13 @@ class MlmDataset(Dataset):
                     line = f.readline()
                     pos += 1
 
-                    document = [self.vocab.get(CLS_TOKEN)] + self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line)) + [self.vocab.get(SEP_TOKEN)]
+                    document = (
+                        [self.vocab.get(CLS_TOKEN)]
+                        + self.tokenizer.convert_tokens_to_ids(
+                            self.tokenizer.tokenize(line)
+                        )
+                        + [self.vocab.get(SEP_TOKEN)]
+                    )
 
                     if self.full_sentences:
                         if len(document) > 0:
@@ -590,25 +661,39 @@ class MlmDataset(Dataset):
         instances = []
         instances_num = len(all_documents) // self.seq_length
         for i in range(instances_num):
-            src = all_documents[i * self.seq_length: (i + 1) * self.seq_length]
+            src = all_documents[i * self.seq_length : (i + 1) * self.seq_length]
             seg_pos = [len(src)]
 
             if not self.dynamic_masking:
-                src, tgt = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                src, tgt = mask_seq(
+                    src,
+                    self.tokenizer,
+                    self.whole_word_masking,
+                    self.span_masking,
+                    self.span_geo_prob,
+                    self.span_max_length,
+                )
                 instance = (src, tgt, seg_pos)
             else:
                 instance = (src, seg_pos)
 
             instances.append(instance)
 
-        src = all_documents[instances_num * self.seq_length:]
+        src = all_documents[instances_num * self.seq_length :]
         seg_pos = [len(src)]
 
         while len(src) != self.seq_length:
             src.append(PAD_ID)
 
         if not self.dynamic_masking:
-            src, tgt = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+            src, tgt = mask_seq(
+                src,
+                self.tokenizer,
+                self.whole_word_masking,
+                self.span_masking,
+                self.span_geo_prob,
+                self.span_max_length,
+            )
             instance = (src, tgt, seg_pos)
         else:
             instance = (src, seg_pos)
@@ -623,9 +708,9 @@ class MlmDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -644,7 +729,14 @@ class MlmDataLoader(DataLoader):
                         tgt[-1][mask[0]] = mask[1]
                     seg.append([1] * ins[2][0] + [PAD_ID] * (len(ins[0]) - ins[2][0]))
                 else:
-                    src_single, tgt_single = mask_seq(ins[0], self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                    src_single, tgt_single = mask_seq(
+                        ins[0],
+                        self.tokenizer,
+                        self.whole_word_masking,
+                        self.span_masking,
+                        self.span_geo_prob,
+                        self.span_max_length,
+                    )
                     masked_words_num += len(tgt_single)
                     src.append(src_single)
                     tgt.append([0] * len(ins[0]))
@@ -655,9 +747,7 @@ class MlmDataLoader(DataLoader):
             if masked_words_num == 0:
                 continue
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt), torch.LongTensor(seg)
 
 
 class AlbertDataset(Dataset):
@@ -692,7 +782,9 @@ class AlbertDataset(Dataset):
                             for instance in instances:
                                 pickle.dump(instance, dataset_writer)
                         document = []
-                    sentence = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
+                    sentence = self.tokenizer.convert_tokens_to_ids(
+                        self.tokenizer.tokenize(line)
+                    )
                     if len(sentence) > 0:
                         document.append(sentence)
                     if pos >= end - 1:
@@ -757,7 +849,14 @@ class AlbertDataset(Dataset):
                         src.append(PAD_ID)
 
                     if not self.dynamic_masking:
-                        src, tgt_mlm = mask_seq(src, self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                        src, tgt_mlm = mask_seq(
+                            src,
+                            self.tokenizer,
+                            self.whole_word_masking,
+                            self.span_masking,
+                            self.span_geo_prob,
+                            self.span_max_length,
+                        )
                         instance = (src, tgt_mlm, is_wrong_order, seg_pos)
                     else:
                         instance = (src, is_wrong_order, seg_pos)
@@ -770,9 +869,10 @@ class AlbertDataset(Dataset):
 
 
 class AlbertDataLoader(BertDataLoader):
-    '''
+    """
     AlbertDataLoader can reuse the code of BertDataLoader.
-    '''
+    """
+
     pass
 
 
@@ -790,16 +890,22 @@ class LmDataset(Dataset):
                 line = f.readline()
                 pos += 1
 
-                document = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
-                document = [self.vocab.get(CLS_TOKEN)] + document + [self.vocab.get(SEP_TOKEN)]
+                document = self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(line)
+                )
+                document = (
+                    [self.vocab.get(CLS_TOKEN)] + document + [self.vocab.get(SEP_TOKEN)]
+                )
 
                 instances_num = len(document) // (self.seq_length + 1)
                 for i in range(instances_num):
-                    src = document[i * (self.seq_length + 1): (i + 1) * (self.seq_length + 1)]
+                    src = document[
+                        i * (self.seq_length + 1) : (i + 1) * (self.seq_length + 1)
+                    ]
                     seg_pos = self.seq_length
                     pickle.dump((src, seg_pos), dataset_writer)
 
-                src = document[instances_num * (self.seq_length + 1):]
+                src = document[instances_num * (self.seq_length + 1) :]
                 if len(src) > 0:
                     seg_pos = len(src)
                     while len(src) != self.seq_length + 1:
@@ -818,9 +924,9 @@ class LmDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -836,9 +942,7 @@ class LmDataLoader(DataLoader):
                 else:
                     seg.append([1] * ins[1] + [PAD_ID] * (len(ins[0]) - 1 - ins[1]))
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt), torch.LongTensor(seg)
 
 
 class BilmDataset(Dataset):
@@ -855,17 +959,19 @@ class BilmDataset(Dataset):
                 line = f.readline()
                 pos += 1
 
-                document = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(line))
+                document = self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(line)
+                )
 
                 instances_num = len(document) // self.seq_length
                 for i in range(instances_num):
-                    src = document[i * self.seq_length: (i + 1) * self.seq_length]
+                    src = document[i * self.seq_length : (i + 1) * self.seq_length]
                     tgt_forward = src[1:] + [self.vocab.get(SEP_TOKEN)]
                     tgt_backward = [self.vocab.get(CLS_TOKEN)] + src[:-1]
                     seg = [1] * len(src)
                     pickle.dump((src, tgt_forward, tgt_backward, seg), dataset_writer)
 
-                src = document[instances_num * self.seq_length:]
+                src = document[instances_num * self.seq_length :]
                 if len(src) < 1:
                     continue
                 tgt_forward = src[1:] + [self.vocab.get(SEP_TOKEN)]
@@ -890,9 +996,9 @@ class BilmDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -907,10 +1013,9 @@ class BilmDataLoader(DataLoader):
                 tgt_backward.append(ins[2])
                 seg.append(ins[3])
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt_forward), \
-                torch.LongTensor(tgt_backward), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(
+                tgt_forward
+            ), torch.LongTensor(tgt_backward), torch.LongTensor(seg)
 
 
 class Seq2seqDataset(Dataset):
@@ -939,14 +1044,30 @@ class Seq2seqDataset(Dataset):
                         break
                     continue
                 document_src, document_tgt = line.strip().split("\t")
-                src = self.src_tokenizer.convert_tokens_to_ids(self.src_tokenizer.tokenize(document_src))
-                tgt = self.tgt_tokenizer.convert_tokens_to_ids(self.tgt_tokenizer.tokenize(document_tgt))
+                src = self.src_tokenizer.convert_tokens_to_ids(
+                    self.src_tokenizer.tokenize(document_src)
+                )
+                tgt = self.tgt_tokenizer.convert_tokens_to_ids(
+                    self.tgt_tokenizer.tokenize(document_tgt)
+                )
 
-                src = [self.src_vocab.get(CLS_TOKEN)] + src + [self.src_vocab.get(SEP_TOKEN)]
-                tgt = [self.tgt_vocab.get(CLS_TOKEN)] + tgt + [self.tgt_vocab.get(SEP_TOKEN)]
+                src = (
+                    [self.src_vocab.get(CLS_TOKEN)]
+                    + src
+                    + [self.src_vocab.get(SEP_TOKEN)]
+                )
+                tgt = (
+                    [self.tgt_vocab.get(CLS_TOKEN)]
+                    + tgt
+                    + [self.tgt_vocab.get(SEP_TOKEN)]
+                )
                 seg = [1] * len(src)
 
-                src, tgt, seg = src[:self.seq_length], tgt[:self.tgt_seq_length + 1], seg[:self.seq_length]
+                src, tgt, seg = (
+                    src[: self.seq_length],
+                    tgt[: self.tgt_seq_length + 1],
+                    seg[: self.seq_length],
+                )
                 while len(src) != self.seq_length:
                     src.append(PAD_ID)
                     seg.append(PAD_ID)
@@ -966,9 +1087,9 @@ class Seq2seqDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -983,16 +1104,16 @@ class Seq2seqDataLoader(DataLoader):
                 tgt_out.append(ins[1][1:])
                 seg.append(ins[2])
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt_in), \
-                torch.LongTensor(tgt_out), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt_in), torch.LongTensor(
+                tgt_out
+            ), torch.LongTensor(seg)
 
 
 class T5Dataset(MlmDataset):
-    '''
+    """
     T5 can reuse the code of MlmDataset.
-    '''
+    """
+
     pass
 
 
@@ -1002,9 +1123,9 @@ class T5DataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -1021,7 +1142,14 @@ class T5DataLoader(DataLoader):
                     tgt_single = ins[1]
                     seg.append([1] * ins[2][0] + [PAD_ID] * (len(ins[0]) - ins[2][0]))
                 else:
-                    src_single, tgt_single = mask_seq(ins[0], self.tokenizer, self.whole_word_masking, self.span_masking, self.span_geo_prob, self.span_max_length)
+                    src_single, tgt_single = mask_seq(
+                        ins[0],
+                        self.tokenizer,
+                        self.whole_word_masking,
+                        self.span_masking,
+                        self.span_geo_prob,
+                        self.span_max_length,
+                    )
                     seg.append([1] * ins[1][0] + [PAD_ID] * (len(ins[0]) - ins[1][0]))
 
                 MASK_ID = self.vocab.get(MASK_TOKEN)
@@ -1036,7 +1164,9 @@ class T5DataLoader(DataLoader):
                 src_with_sentinel = []
                 for token_id in src_single:
                     if token_id == MASK_ID:
-                        if len(src_with_sentinel) > 0 and src_with_sentinel[-1] == (SENTINEL_ID - 1):
+                        if len(src_with_sentinel) > 0 and src_with_sentinel[-1] == (
+                            SENTINEL_ID - 1
+                        ):
                             pass
                         else:
                             src_with_sentinel.append(SENTINEL_ID)
@@ -1064,10 +1194,9 @@ class T5DataLoader(DataLoader):
                     tgt_in[i].append(PAD_ID)
                     tgt_out[i].append(PAD_ID)
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt_in), \
-                torch.LongTensor(tgt_out), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt_in), torch.LongTensor(
+                tgt_out
+            ), torch.LongTensor(seg)
 
 
 class ClsDataset(Dataset):
@@ -1084,7 +1213,7 @@ class ClsDataset(Dataset):
                 line = f.readline()
                 pos += 1
 
-                line = line.strip().split('\t')
+                line = line.strip().split("\t")
                 if len(line) == 2:
                     label = int(line[0])
                     text = " ".join(line[1:])
@@ -1093,8 +1222,8 @@ class ClsDataset(Dataset):
                     tgt = label
                     seg = [1] * len(src)
                     if len(src) >= self.seq_length:
-                        src = src[:self.seq_length]
-                        seg = seg[:self.seq_length]
+                        src = src[: self.seq_length]
+                        seg = seg[: self.seq_length]
                     else:
                         while len(src) != self.seq_length:
                             src.append(PAD_ID)
@@ -1105,7 +1234,11 @@ class ClsDataset(Dataset):
                     text_a, text_b = line[1], line[2]
 
                     src_a = [self.vocab.get(t) for t in self.tokenizer.tokenize(text_a)]
-                    src_a = [self.vocab.get(CLS_TOKEN)] + src_a + [self.vocab.get(SEP_TOKEN)]
+                    src_a = (
+                        [self.vocab.get(CLS_TOKEN)]
+                        + src_a
+                        + [self.vocab.get(SEP_TOKEN)]
+                    )
                     src_b = [self.vocab.get(t) for t in self.tokenizer.tokenize(text_b)]
                     src_b = src_b + [self.vocab.get(SEP_TOKEN)]
 
@@ -1113,8 +1246,8 @@ class ClsDataset(Dataset):
                     seg = [1] * len(src_a) + [2] * len(src_b)
 
                     if len(src) >= self.seq_length:
-                        src = src[:self.seq_length]
-                        seg = seg[:self.seq_length]
+                        src = src[: self.seq_length]
+                        seg = seg[: self.seq_length]
                     else:
                         while len(src) != self.seq_length:
                             src.append(PAD_ID)
@@ -1135,9 +1268,9 @@ class ClsDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -1150,13 +1283,10 @@ class ClsDataLoader(DataLoader):
                 tgt.append(ins[1])
                 seg.append(ins[2])
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt), \
-                torch.LongTensor(seg)
+            yield torch.LongTensor(src), torch.LongTensor(tgt), torch.LongTensor(seg)
 
 
 class PrefixlmDataset(Dataset):
-
     def worker(self, proc_id, start, end):
         print("Worker %d is building dataset ... " % proc_id)
         set_seed(self.seed)
@@ -1175,8 +1305,12 @@ class PrefixlmDataset(Dataset):
                         break
                     continue
                 document_src, document_tgt = line.strip().split("\t")
-                src = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(document_src))
-                tgt = self.tokenizer.convert_tokens_to_ids(self.tokenizer.tokenize(document_tgt))
+                src = self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(document_src)
+                )
+                tgt = self.tokenizer.convert_tokens_to_ids(
+                    self.tokenizer.tokenize(document_tgt)
+                )
                 src = [self.vocab.get(CLS_TOKEN)] + src + [self.vocab.get(SEP_TOKEN)]
                 tgt = tgt + [self.vocab.get(SEP_TOKEN)]
                 seg_pos = [len(src)]
@@ -1187,7 +1321,7 @@ class PrefixlmDataset(Dataset):
                 src = src + tgt
                 tgt = [0] * seg_pos[0] + tgt[1:] + [PAD_ID]
                 seg_pos.append(len(src))
-                src, tgt = src[:self.seq_length], tgt[:self.seq_length]
+                src, tgt = src[: self.seq_length], tgt[: self.seq_length]
                 while len(src) != self.seq_length:
                     src.append(PAD_ID)
                     tgt.append(PAD_ID)
@@ -1208,9 +1342,9 @@ class PrefixlmDataLoader(DataLoader):
             while self._empty():
                 self._fill_buf()
             if self.start + self.batch_size >= self.end:
-                instances = self.buffer[self.start:]
+                instances = self.buffer[self.start :]
             else:
-                instances = self.buffer[self.start: self.start + self.batch_size]
+                instances = self.buffer[self.start : self.start + self.batch_size]
 
             self.start += self.batch_size
 
@@ -1221,9 +1355,10 @@ class PrefixlmDataLoader(DataLoader):
             for ins in instances:
                 src.append(ins[0])
                 tgt.append(ins[1])
-                seg.append([1] * ins[2][0] + [2] * (ins[2][1] - ins[2][0]) + [PAD_ID] * (len(ins[0]) - ins[2][1]))
+                seg.append(
+                    [1] * ins[2][0]
+                    + [2] * (ins[2][1] - ins[2][0])
+                    + [PAD_ID] * (len(ins[0]) - ins[2][1])
+                )
 
-            yield torch.LongTensor(src), \
-                torch.LongTensor(tgt), \
-                torch.LongTensor(seg)
-
+            yield torch.LongTensor(src), torch.LongTensor(tgt), torch.LongTensor(seg)

@@ -17,12 +17,12 @@ class DenseAttention(nn.Module):
         # Note: 根据论文无法知道是哪个一个Linear layer将hidden_size转换成seq_length，先随便试一试
         self.F_linear_1 = nn.Linear(hidden_size, seq_length)
         self.relu = nn.ReLU()
-        self.F_linear_2 = nn.Linear(seq_length, seq_length) 
+        self.F_linear_2 = nn.Linear(seq_length, seq_length)
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = nn.Dropout(dropout)
 
         # Function G() in Dense format
-        self.G_linear = nn.Linear(hidden_size, hidden_size) 
+        self.G_linear = nn.Linear(hidden_size, hidden_size)
 
         # Final linear
         self.final_linear = nn.Linear(hidden_size, hidden_size)
@@ -53,7 +53,6 @@ class DenseAttention(nn.Module):
 
 
 class RandomAttention(nn.Module):
-    
     def __init__(self, seq_length, hidden_size, dropout):
         super(RandomAttention, self).__init__()
 
@@ -62,7 +61,7 @@ class RandomAttention(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # Function G() in Dense format
-        self.G_linear = nn.Linear(hidden_size, hidden_size) 
+        self.G_linear = nn.Linear(hidden_size, hidden_size)
 
         # Final linear
         self.final_linear = nn.Linear(hidden_size, hidden_size)
@@ -108,7 +107,7 @@ class ISynthesizer(nn.Module):
         self.dropout_2 = nn.Dropout(args.dropout)
         self.layer_norm_2 = LayerNorm(args.hidden_size)
 
-        if self.__class__.__name__ == 'ISynthesizer':
+        if self.__class__.__name__ == "ISynthesizer":
             raise Exception("ISynthesizer cannot be instantiated.")
 
     def forward(self, hidden, mask):
@@ -123,7 +122,7 @@ class ISynthesizer(nn.Module):
         inter = self.dropout_1(self.att(hidden, mask))
         inter = self.layer_norm_1(inter + hidden)
         output = self.dropout_2(self.feed_forward(inter))
-        output = self.layer_norm_2(output + inter)  
+        output = self.layer_norm_2(output + inter)
         return output
 
 
@@ -137,9 +136,7 @@ class DenseSynthesizer(ISynthesizer):
         super(DenseSynthesizer, self).__init__(args)
 
         # dense attention
-        self.att = DenseAttention(
-                args.seq_length, args.hidden_size, args.dropout
-            )
+        self.att = DenseAttention(args.seq_length, args.hidden_size, args.dropout)
 
 
 class RandomSynthesizer(ISynthesizer):
@@ -152,16 +149,7 @@ class RandomSynthesizer(ISynthesizer):
         super(RandomSynthesizer, self).__init__(args)
 
         # dense attention
-        self.att = RandomAttention(
-                args.seq_length, args.hidden_size, args.dropout
-            )
-        
-
-SYNT_TYPE_MAP = {
-        'dense': DenseSynthesizer,
-        'random': RandomSynthesizer
-    }
+        self.att = RandomAttention(args.seq_length, args.hidden_size, args.dropout)
 
 
-
-        
+SYNT_TYPE_MAP = {"dense": DenseSynthesizer, "random": RandomSynthesizer}

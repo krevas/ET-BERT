@@ -15,7 +15,9 @@ class MlmTarget(nn.Module):
         self.vocab_size = vocab_size
         self.hidden_size = args.hidden_size
         self.emb_size = args.emb_size
-        self.factorized_embedding_parameterization = args.factorized_embedding_parameterization
+        self.factorized_embedding_parameterization = (
+            args.factorized_embedding_parameterization
+        )
         self.act = str2act[args.hidden_act]
 
         if self.factorized_embedding_parameterization:
@@ -30,7 +32,7 @@ class MlmTarget(nn.Module):
         self.softmax = nn.LogSoftmax(dim=-1)
 
         self.criterion = nn.NLLLoss()
-        #self.criterion = nn.CrossEntropyLoss()
+        # self.criterion = nn.CrossEntropyLoss()
 
     def mlm(self, memory_bank, tgt_mlm):
         # Masked language modeling (MLM) with full softmax prediction.

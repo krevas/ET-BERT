@@ -38,8 +38,8 @@ class Classifier(nn.Module):
         """
         ### src,seg [bz x 640] -> [bz x 5 x 128], set seq_length = 128
         batch_size_num = src.shape[0]
-        seq_length = src.shape[1]//5
-        #src = src.view(batch_size_num,5,seq_length)
+        seq_length = src.shape[1] // 5
+        # src = src.view(batch_size_num,5,seq_length)
         # Embedding.
         emb_data = self.embedding(src, seg)
         # Encoder.
@@ -49,14 +49,14 @@ class Classifier(nn.Module):
             seg_data = seg[each_batch_size]
             output_emb = self.encoder(emb, seg_data)
             ### output [5 x seq_length x 768] -> [5 x 1 x 768]
-            output_data = output_emb[:,:1,:]
+            output_data = output_emb[:, :1, :]
             ### delete dim of seq_length, expand dim of batch
             cls_output = output_data.squeeze(1).unsqueeze(0)
             if output.size(0) == 0:
                 output = cls_output
             else:
-                output = torch.cat((output,cls_output),0)
-        
+                output = torch.cat((output, cls_output), 0)
+
         # Target.
         if self.pooling == "mean":
             output = torch.mean(output, dim=1)
@@ -70,8 +70,9 @@ class Classifier(nn.Module):
         logits = self.output_layer_2(output)
         if tgt is not None:
             if self.soft_targets and soft_tgt is not None:
-                loss = self.soft_alpha * nn.MSELoss()(logits, soft_tgt) + \
-                       (1 - self.soft_alpha) * nn.NLLLoss()(nn.LogSoftmax(dim=-1)(logits), tgt.view(-1))
+                loss = self.soft_alpha * nn.MSELoss()(logits, soft_tgt) + (
+                    1 - self.soft_alpha
+                ) * nn.NLLLoss()(nn.LogSoftmax(dim=-1)(logits), tgt.view(-1))
             else:
                 loss = nn.NLLLoss()(nn.LogSoftmax(dim=-1)(logits), tgt.view(-1))
             return loss, logits
@@ -96,7 +97,9 @@ def count_labels_num(path):
 def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
-        model.load_state_dict(torch.load(args.pretrained_model_path, map_location='cpu'), strict=False)
+        model.load_state_dict(
+            torch.load(args.pretrained_model_path, map_location="cpu"), strict=False
+        )
     else:
         # Initialize with normal distribution.
         for n, p in list(model.named_parameters()):
@@ -106,22 +109,42 @@ def load_or_initialize_parameters(args, model):
 
 def build_optimizer(args, model):
     param_optimizer = list(model.named_parameters())
-    no_decay = ['bias', 'gamma', 'beta']
+    no_decay = ["bias", "gamma", "beta"]
     optimizer_grouped_parameters = [
-                {'params': [p for n, p in param_optimizer if not any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.01},
-                {'params': [p for n, p in param_optimizer if any(nd in n for nd in no_decay)], 'weight_decay_rate': 0.0}
+        {
+            "params": [
+                p for n, p in param_optimizer if not any(nd in n for nd in no_decay)
+            ],
+            "weight_decay_rate": 0.01,
+        },
+        {
+            "params": [
+                p for n, p in param_optimizer if any(nd in n for nd in no_decay)
+            ],
+            "weight_decay_rate": 0.0,
+        },
     ]
     if args.optimizer in ["adamw"]:
-        optimizer = str2optimizer[args.optimizer](optimizer_grouped_parameters, lr=args.learning_rate, correct_bias=False)
+        optimizer = str2optimizer[args.optimizer](
+            optimizer_grouped_parameters, lr=args.learning_rate, correct_bias=False
+        )
     else:
-        optimizer = str2optimizer[args.optimizer](optimizer_grouped_parameters, lr=args.learning_rate,
-                                                  scale_parameter=False, relative_step=False)
+        optimizer = str2optimizer[args.optimizer](
+            optimizer_grouped_parameters,
+            lr=args.learning_rate,
+            scale_parameter=False,
+            relative_step=False,
+        )
     if args.scheduler in ["constant"]:
         scheduler = str2scheduler[args.scheduler](optimizer)
     elif args.scheduler in ["constant_with_warmup"]:
-        scheduler = str2scheduler[args.scheduler](optimizer, args.train_steps*args.warmup)
+        scheduler = str2scheduler[args.scheduler](
+            optimizer, args.train_steps * args.warmup
+        )
     else:
-        scheduler = str2scheduler[args.scheduler](optimizer, args.train_steps*args.warmup, args.train_steps)
+        scheduler = str2scheduler[args.scheduler](
+            optimizer, args.train_steps * args.warmup, args.train_steps
+        )
     return optimizer, scheduler
 
 
@@ -149,7 +172,7 @@ def batch_loader(batch_size, src, tgt, seg, soft_tgt=None):
 
 def read_dataset(args, path):
     dataset, columns = [], {}
-    
+
     with open(path, mode="r", encoding="utf-8") as f:
         try:
             for line_id, line in enumerate(f):
@@ -160,27 +183,36 @@ def read_dataset(args, path):
                 line = line[:-1].split("\t")
                 tgt = int(line[columns["label"]])
                 if args.soft_targets and "logits" in columns.keys():
-                    soft_tgt = [float(value) for value in line[columns["logits"]].split(" ")]
-            
-                src_dataset,seg_dataset = [], [] # not source code
+                    soft_tgt = [
+                        float(value) for value in line[columns["logits"]].split(" ")
+                    ]
+
+                src_dataset, seg_dataset = [], []  # not source code
                 if "text_b" not in columns:  # Sentence classification.
                     text_a = line[columns["text_a"]]
                     ### source code as up
                     text_a_list = text_a.split(" | ")
                     if text_a_list:
                         for text_a_index in range(len(text_a_list)):
-                            src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a_list[text_a_index]))
+                            src = args.tokenizer.convert_tokens_to_ids(
+                                [CLS_TOKEN]
+                                + args.tokenizer.tokenize(text_a_list[text_a_index])
+                            )
                             src_dataset.append(src)
                             seg_dataset.append([1] * len(src))
                     else:
-                        print("BBBB ",text_a_list," BBBBBBBBBBBBB",path)
+                        print("BBBB ", text_a_list, " BBBBBBBBBBBBB", path)
                 ### source codes as below
-                #src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a))
-                #seg = [1] * len(src)
+                # src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a))
+                # seg = [1] * len(src)
                 else:  # Sentence-pair classification.
                     text_a, text_b = line[columns["text_a"]], line[columns["text_b"]]
-                    src_a = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN])
-                    src_b = args.tokenizer.convert_tokens_to_ids(args.tokenizer.tokenize(text_b) + [SEP_TOKEN])
+                    src_a = args.tokenizer.convert_tokens_to_ids(
+                        [CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN]
+                    )
+                    src_b = args.tokenizer.convert_tokens_to_ids(
+                        args.tokenizer.tokenize(text_b) + [SEP_TOKEN]
+                    )
                     src = src_a + src_b
                     seg = [1] * len(src_a) + [2] * len(src_b)
 
@@ -193,11 +225,11 @@ def read_dataset(args, path):
                             src_dataset[index].append(0)
                             seg_dataset[index].append(0)
                 else:
-                    print("BBBB ",text_a_list," BBBBBBBBBBBBB",path)
+                    print("BBBB ", text_a_list, " BBBBBBBBBBBBB", path)
                 # src_dataset,seg_dataset [5 x 128] -> src,seg [640]
-                #src = [data for data_list in src_dataset for data in data_list]
-                #seg = [data for data_list in seg_dataset for data in data_list]
-                src = src_dataset # src [5]
+                # src = [data for data_list in src_dataset for data in data_list]
+                # seg = [data for data_list in seg_dataset for data in data_list]
+                src = src_dataset  # src [5]
                 seg = seg_dataset
 
                 if args.soft_targets and "logits" in columns.keys():
@@ -211,7 +243,16 @@ def read_dataset(args, path):
     return dataset
 
 
-def train_model(args, model, optimizer, scheduler, src_batch, tgt_batch, seg_batch, soft_tgt_batch=None):
+def train_model(
+    args,
+    model,
+    optimizer,
+    scheduler,
+    src_batch,
+    tgt_batch,
+    seg_batch,
+    soft_tgt_batch=None,
+):
     model.zero_grad()
 
     src_batch = src_batch.to(args.device)
@@ -249,7 +290,9 @@ def evaluate(args, dataset, print_confusion_matrix=False):
 
     args.model.eval()
 
-    for i, (src_batch, tgt_batch, seg_batch, _) in enumerate(batch_loader(batch_size, src, tgt, seg)):
+    for i, (src_batch, tgt_batch, seg_batch, _) in enumerate(
+        batch_loader(batch_size, src, tgt, seg)
+    ):
         src_batch = src_batch.to(args.device)
         tgt_batch = tgt_batch.to(args.device)
         seg_batch = seg_batch.to(args.device)
@@ -271,29 +314,44 @@ def evaluate(args, dataset, print_confusion_matrix=False):
             f1 = 2 * p * r / (p + r)
             print("Label {}: {:.3f}, {:.3f}, {:.3f}".format(i, p, r, f1))
 
-    print("Acc. (Correct/Total): {:.4f} ({}/{}) ".format(correct / len(dataset), correct, len(dataset)))
+    print(
+        "Acc. (Correct/Total): {:.4f} ({}/{}) ".format(
+            correct / len(dataset), correct, len(dataset)
+        )
+    )
     return correct / len(dataset), confusion
 
 
 def main():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
     finetune_opts(parser)
 
-    parser.add_argument("--pooling", choices=["mean", "max", "first", "last"], default="first",
-                        help="Pooling type.")
+    parser.add_argument(
+        "--pooling",
+        choices=["mean", "max", "first", "last"],
+        default="first",
+        help="Pooling type.",
+    )
 
-    parser.add_argument("--tokenizer", choices=["bert", "char", "space"], default="bert",
-                        help="Specify the tokenizer."
-                             "Original Google BERT uses bert tokenizer on Chinese corpus."
-                             "Char tokenizer segments sentences into characters."
-                             "Space tokenizer segments sentences into words according to space."
-                             )
+    parser.add_argument(
+        "--tokenizer",
+        choices=["bert", "char", "space"],
+        default="bert",
+        help="Specify the tokenizer."
+        "Original Google BERT uses bert tokenizer on Chinese corpus."
+        "Char tokenizer segments sentences into characters."
+        "Space tokenizer segments sentences into words according to space.",
+    )
 
-    parser.add_argument("--soft_targets", action='store_true',
-                        help="Train model with logits.")
-    parser.add_argument("--soft_alpha", type=float, default=0.5,
-                        help="Weight of the soft targets loss.")
+    parser.add_argument(
+        "--soft_targets", action="store_true", help="Train model with logits."
+    )
+    parser.add_argument(
+        "--soft_alpha", type=float, default=0.5, help="Weight of the soft targets loss."
+    )
 
     args = parser.parse_args()
 
@@ -314,7 +372,7 @@ def main():
     # Load or initialize parameters.
     load_or_initialize_parameters(args, model)
 
-    #args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     args.device = torch.device("cpu")
     model = model.to(args.device)
 
@@ -345,12 +403,18 @@ def main():
         try:
             from apex import amp
         except ImportError:
-            raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
-        model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
+            raise ImportError(
+                "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
+            )
+        model, optimizer = amp.initialize(
+            model, optimizer, opt_level=args.fp16_opt_level
+        )
         args.amp = amp
 
     if torch.cuda.device_count() > 1:
-        print("{} GPUs are available. Let's use them.".format(torch.cuda.device_count()))
+        print(
+            "{} GPUs are available. Let's use them.".format(torch.cuda.device_count())
+        )
         model = torch.nn.DataParallel(model)
     args.model = model
 
@@ -360,11 +424,26 @@ def main():
 
     for epoch in range(1, args.epochs_num + 1):
         model.train()
-        for i, (src_batch, tgt_batch, seg_batch, soft_tgt_batch) in enumerate(batch_loader(batch_size, src, tgt, seg, soft_tgt)):
-            loss = train_model(args, model, optimizer, scheduler, src_batch, tgt_batch, seg_batch, soft_tgt_batch)
+        for i, (src_batch, tgt_batch, seg_batch, soft_tgt_batch) in enumerate(
+            batch_loader(batch_size, src, tgt, seg, soft_tgt)
+        ):
+            loss = train_model(
+                args,
+                model,
+                optimizer,
+                scheduler,
+                src_batch,
+                tgt_batch,
+                seg_batch,
+                soft_tgt_batch,
+            )
             total_loss += loss.item()
             if (i + 1) % args.report_steps == 0:
-                print("Epoch id: {}, Training steps: {}, Avg loss: {:.3f}".format(epoch, i + 1, total_loss / args.report_steps))
+                print(
+                    "Epoch id: {}, Training steps: {}, Avg loss: {:.3f}".format(
+                        epoch, i + 1, total_loss / args.report_steps
+                    )
+                )
                 total_loss = 0.0
 
         result = evaluate(args, read_dataset(args, args.dev_path))
@@ -376,7 +455,9 @@ def main():
     if args.test_path is not None:
         print("Test set evaluation.")
         if torch.cuda.device_count() > 1:
-            model.module.load_state_dict(torch.load(args.output_model_path,map_location='cuda:2'))
+            model.module.load_state_dict(
+                torch.load(args.output_model_path, map_location="cuda:2")
+            )
         else:
             model.load_state_dict(torch.load(args.output_model_path))
         evaluate(args, read_dataset(args, args.test_path), True)

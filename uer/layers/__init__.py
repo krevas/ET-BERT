@@ -4,8 +4,17 @@ from uer.layers.embeddings import WordPosSegEmbedding
 from uer.layers.embeddings import WordSinusoidalposEmbedding
 
 
-str2embedding = {"word": WordEmbedding, "word_pos": WordPosEmbedding, "word_pos_seg": WordPosSegEmbedding,
-                 "word_sinusoidalpos": WordSinusoidalposEmbedding}
+str2embedding = {
+    "word": WordEmbedding,
+    "word_pos": WordPosEmbedding,
+    "word_pos_seg": WordPosSegEmbedding,
+    "word_sinusoidalpos": WordSinusoidalposEmbedding,
+}
 
-__all__ = ["WordEmbedding", "WordPosEmbedding", "WordPosSegEmbedding",
-           "WordSinusoidalposEmbedding", "str2embedding"]
+__all__ = [
+    "WordEmbedding",
+    "WordPosEmbedding",
+    "WordPosSegEmbedding",
+    "WordSinusoidalposEmbedding",
+    "str2embedding",
+]

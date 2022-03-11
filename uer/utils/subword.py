@@ -5,9 +5,9 @@ from uer.utils.constants import *
 
 
 def word2sub(word_ids, vocab, sub_vocab, subword_type):
-    '''
+    """
     word_ids: batch_size, seq_length
-    '''
+    """
     batch_size, seq_length = word_ids.size()
     device = word_ids.device
     word_ids = word_ids.contiguous().view(-1).tolist()

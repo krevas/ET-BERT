@@ -12,7 +12,7 @@ class LayerNorm(nn.Module):
     def forward(self, x):
         mean = x.mean(-1, keepdim=True)
         std = x.std(-1, keepdim=True)
-        hidden_states =  self.gamma * (x-mean) / (std + self.eps)
+        hidden_states = self.gamma * (x - mean) / (std + self.eps)
 
         return hidden_states + self.beta
 

@@ -60,6 +60,7 @@ class WordPosSegEmbedding(nn.Module):
     BERT embedding consists of three parts:
     word embedding, position embedding, and segment embedding.
     """
+
     def __init__(self, args, vocab_size):
         super(WordPosSegEmbedding, self).__init__()
         self.remove_embedding_layernorm = args.remove_embedding_layernorm
@@ -101,15 +102,17 @@ class WordSinusoidalposEmbedding(nn.Module):
     def __init__(self, args, vocab_size):
         super(WordSinusoidalposEmbedding, self).__init__()
         if args.emb_size % 2 != 0:
-            raise ValueError("Cannot use sin/cos positional encoding with "
-                             "odd dim (got dim={:d})".format(args.emb_size))
+            raise ValueError(
+                "Cannot use sin/cos positional encoding with "
+                "odd dim (got dim={:d})".format(args.emb_size)
+            )
         self.max_seq_length = args.max_seq_length
         pe = torch.zeros(self.max_seq_length, args.emb_size)
         position = torch.arange(0, self.max_seq_length).unsqueeze(1)
         div_term = torch.exp(
             (
                 torch.arange(0, args.emb_size, 2, dtype=torch.float)
-                *- (math.log(10000.0) / args.emb_size)
+                * -(math.log(10000.0) / args.emb_size)
             )
         )
         pe[:, 0::2] = torch.sin(position.float() * div_term)

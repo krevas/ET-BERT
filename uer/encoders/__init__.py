@@ -8,10 +8,25 @@ from uer.encoders.rnn_encoder import BigruEncoder
 from uer.encoders.cnn_encoder import GatedcnnEncoder
 
 
-str2encoder = {"transformer": TransformerEncoder, "rnn": RnnEncoder, "lstm": LstmEncoder,
-               "gru": GruEncoder, "birnn": BirnnEncoder, "bilstm": BilstmEncoder, "bigru": BigruEncoder,
-               "gatedcnn": GatedcnnEncoder}
+str2encoder = {
+    "transformer": TransformerEncoder,
+    "rnn": RnnEncoder,
+    "lstm": LstmEncoder,
+    "gru": GruEncoder,
+    "birnn": BirnnEncoder,
+    "bilstm": BilstmEncoder,
+    "bigru": BigruEncoder,
+    "gatedcnn": GatedcnnEncoder,
+}
 
-__all__ = ["TransformerEncoder", "RnnEncoder", "LstmEncoder", "GruEncoder", "BirnnEncoder",
-           "BilstmEncoder", "BigruEncoder", "GatedcnnEncoder", "str2encoder"]
-
+__all__ = [
+    "TransformerEncoder",
+    "RnnEncoder",
+    "LstmEncoder",
+    "GruEncoder",
+    "BirnnEncoder",
+    "BilstmEncoder",
+    "BigruEncoder",
+    "GatedcnnEncoder",
+    "str2encoder",
+]

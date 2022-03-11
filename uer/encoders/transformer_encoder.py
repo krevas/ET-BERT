@@ -4,16 +4,20 @@ from uer.layers.transformer import TransformerLayer
 from uer.layers.layer_norm import LayerNorm, T5LayerNorm
 from uer.layers.relative_position_embedding import RelativePositionEmbedding
 
+
 class TransformerEncoder(nn.Module):
     """
     BERT encoder exploits 12 or 24 transformer layers to extract features.
     """
+
     def __init__(self, args):
         super(TransformerEncoder, self).__init__()
         self.mask = args.mask
         self.layers_num = args.layers_num
         self.parameter_sharing = args.parameter_sharing
-        self.factorized_embedding_parameterization = args.factorized_embedding_parameterization
+        self.factorized_embedding_parameterization = (
+            args.factorized_embedding_parameterization
+        )
         self.layernorm_positioning = args.layernorm_positioning
         self.relative_position_embedding = args.relative_position_embedding
 
@@ -38,9 +42,11 @@ class TransformerEncoder(nn.Module):
                 self.layer_norm = LayerNorm(args.hidden_size)
 
         if self.relative_position_embedding:
-            self.relative_pos_emb = RelativePositionEmbedding(bidirectional=True, heads_num=args.heads_num,
-                                                              num_buckets=args.relative_attention_buckets_num)
-
+            self.relative_pos_emb = RelativePositionEmbedding(
+                bidirectional=True,
+                heads_num=args.heads_num,
+                num_buckets=args.relative_attention_buckets_num,
+            )
 
     def forward(self, emb, seg):
         """
@@ -57,10 +63,7 @@ class TransformerEncoder(nn.Module):
         # Generate mask according to segment indicators.
         # mask: [batch_size x 1 x seq_length x seq_length]
         if self.mask == "fully_visible":
-            mask = (seg > 0). \
-                unsqueeze(1). \
-                repeat(1, seq_length, 1). \
-                unsqueeze(1)
+            mask = (seg > 0).unsqueeze(1).repeat(1, seq_length, 1).unsqueeze(1)
             mask = mask.float()
             mask = (1.0 - mask) * -10000.0
         elif self.mask == "causal":
@@ -69,15 +72,13 @@ class TransformerEncoder(nn.Module):
             mask = (1.0 - mask) * -10000
             mask = mask.repeat(batch_size, 1, 1, 1)
         else:
-            mask_a = (seg == 1). \
-                unsqueeze(1). \
-                repeat(1, seq_length, 1). \
-                unsqueeze(1).float()
+            mask_a = (
+                (seg == 1).unsqueeze(1).repeat(1, seq_length, 1).unsqueeze(1).float()
+            )
 
-            mask_b = (seg > 0). \
-                unsqueeze(1). \
-                repeat(1, seq_length, 1). \
-                unsqueeze(1).float()
+            mask_b = (
+                (seg > 0).unsqueeze(1).repeat(1, seq_length, 1).unsqueeze(1).float()
+            )
 
             mask_tril = torch.ones(seq_length, seq_length, device=emb.device)
             mask_tril = torch.tril(mask_tril)
