@@ -45,14 +45,15 @@ def preprocess(pcap_dir, word_output_file):
     packet_num = 0
     n = 0
 
+    result_file = open(word_output_file, "w")
+
     for parent, dirs, files in os.walk(pcap_dir):
-        for file in files:
+        for file in sorted(files):
             if "pcapng" not in file:
                 n += 1
                 pcap_name = os.path.join(parent, file)
                 print(f"No.{n} pacp is processed ... {file} ...")
                 packets = scapy.rdpcap(pcap_name)
-                words_txt = []
 
                 for p in packets:
                     packet_num += 1
@@ -66,6 +67,7 @@ def preprocess(pcap_dir, word_output_file):
                     for string_txt in cut(words_string, int(length / 2)):
                         token_count = 0
                         sentence = cut(string_txt, 1)
+                        tmp_string = ""
                         for sub_string_index in range(len(sentence)):
                             if sub_string_index != (len(sentence) - 1):
                                 token_count += 1
@@ -78,15 +80,11 @@ def preprocess(pcap_dir, word_output_file):
                                     )
                             else:
                                 break
-                            words_txt.append(merge_word_bigram)
-                            words_txt.append(" ")
-                        words_txt.append("\n")
-                    words_txt.append("\n")
+                            tmp_string = tmp_string + " " + merge_word_bigram
+                        result_file.write(f"{tmp_string.strip()}\n")
+                    result_file.write("\n")
 
-                result_file = open(word_output_file, "a")
-                for words in words_txt:
-                    result_file.write(words)
-                result_file.close()
+    result_file.close()
     print(f"finish preprocessing {n} pcaps")
     return packet_num
 
