@@ -47,7 +47,6 @@ def preprocess(pcap_dir, word_output_file):
                 pcap_name = os.path.join(parent, file)
                 print(f"No.{n} pacp is processed ... {file} ...")
                 packets = scapy.rdpcap(pcap_name)
-                #word_packet = b''
                 words_txt = []
 
                 for p in packets:
@@ -55,8 +54,7 @@ def preprocess(pcap_dir, word_output_file):
                     word_packet = p.copy()
                     words = (binascii.hexlify(bytes(word_packet)))
                     
-                    words_string = words.decode()[68:]
-                    # print(words_string)
+                    words_string = words.decode()[68:] # 헤더 부분 제거
                     length = len(words_string)
                     if length < 10:
                         continue
