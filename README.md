@@ -59,7 +59,7 @@ wget -O pretrained_model.bin https://drive.google.com/file/d/1r1yE34dU2W8zSqx1Fk
 
 After obtaining the pre-trained model, ET-BERT could be applied to the spetic task by fine-tuning with labeled network traffic:
 ```
-python3 finetuning.py --pretrained_model_path models/pre-trained_model.bin \
+python3 finetuning.py --pretrained_model_path models/pretrained_model.bin \
                       --vocab_path models/encryptd_vocab.txt \
                       --train_path datasets/cstnet-tls1.3/packet/train_dataset.tsv \
                       --dev_path datasets/cstnet-tls1.3/packet/valid_dataset.tsv \
