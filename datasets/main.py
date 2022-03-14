@@ -1,26 +1,16 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
 
-import numpy as np
-import json
 import os
-import time
-import xlrd
-import pickle
-from sklearn.model_selection import StratifiedShuffleSplit
-import pandas as pd
-from scipy.stats import skew, kurtosis
-import sys
 import csv
-import copy
-import tqdm
-import random
-import shutil
-import dataset_generation
-import build_vector_dataset
+import pickle
 
-import data_preprocess
+import numpy as np
+from sklearn.model_selection import StratifiedShuffleSplit
+
 import open_dataset_deal
+import dataset_generation
+
 
 _category = 120  # dataset class
 dataset_dir = "I:\\datasets\\"  # the path to save dataset for dine-tuning

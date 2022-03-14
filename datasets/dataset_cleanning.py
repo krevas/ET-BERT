@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
 
-from ml_classifier import unlabel_data
+from main import unlabel_data
 
 
 def deal_label():

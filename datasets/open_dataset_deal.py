@@ -3,7 +3,6 @@
 
 import os
 import shutil
-import subprocess
 
 
 def fix_dataset(method):

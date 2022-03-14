@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 # -*- coding:utf-8 -*-
 
-import numpy as np
 import os, shutil
 import json
 import random
 
+import numpy as np
 
 def combine_data_json():
     target_path = "F:\\LEFTT-2021\\binary\\"
