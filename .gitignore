@@ -4,8 +4,10 @@
 corpora/ISCX-2016-VPN/
 corpora/encrypted_*_burst.txt
 
+models/finetuned*.bin
+models/pretrained*.bin
 *.pt
-nohup.out
+nohup.out*
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
