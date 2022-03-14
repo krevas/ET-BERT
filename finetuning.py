@@ -10,7 +10,6 @@ import torch.nn as nn
 
 from uer.layers import *
 from uer.encoders import *
-from uer.utils.vocab import Vocab
 from uer.utils.constants import *
 from uer.utils import *
 from uer.utils.optimizers import *
@@ -101,7 +100,7 @@ def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
-            torch.load(args.pretrained_model_path, map_location="cuda"), strict=False
+            torch.load(args.pretrained_model_path, map_location=args.device), strict=False
         )
     else:
         # Initialize with normal distribution.
@@ -265,7 +264,7 @@ def train_model(
         soft_tgt_batch = soft_tgt_batch.to(args.device)
 
     loss, _ = model(src_batch, tgt_batch, seg_batch, soft_tgt_batch)
-    if torch.cuda.device_count() > 1:
+    if args.multi_gpu:
         loss = torch.mean(loss)
 
     if args.fp16:
@@ -350,14 +349,20 @@ def main():
     parser.add_argument(
         "--soft_targets", action="store_true", help="Train model with logits."
     )
+    
     parser.add_argument(
         "--soft_alpha", type=float, default=0.5, help="Weight of the soft targets loss."
+    )
+    
+    parser.add_argument(
+        "--multi_gpu", action="store_true", help="Using multi GPU"
     )
 
     args = parser.parse_args()
 
     # Load the hyperparameters from the config file.
     args = load_hyperparam(args)
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     set_seed(args.seed)
 
@@ -372,8 +377,6 @@ def main():
 
     # Load or initialize parameters.
     load_or_initialize_parameters(args, model)
-
-    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(args.device)
 
     # Training phase.
@@ -411,7 +414,7 @@ def main():
         )
         args.amp = amp
 
-    if torch.cuda.device_count() > 1:
+    if args.multi_gpu:
         logger.info(f"{torch.cuda.device_count()} GPUs are available. Let's use them.")
         model = torch.nn.DataParallel(model)
     args.model = model
@@ -450,16 +453,21 @@ def main():
     # Evaluation phase.
     if args.test_path is not None:
         logger.info("Test set evaluation.")
-        if torch.cuda.device_count() > 1:
+        if args.multi_gpu:
             model.module.load_state_dict(
-                torch.load(args.output_model_path, map_location="cuda")
+                torch.load(args.output_model_path, map_location=args.device)
             )
         else:
             model.load_state_dict(torch.load(args.output_model_path))
         evaluate(args, read_dataset(args, args.test_path), True)
 
+def get_logger(level=logging.INFO):
+    LOG_FORMAT = "[%(asctime)-10s] (line: %(lineno)d) %(levelname)s - %(message)s"
+    logging.basicConfig(format=LOG_FORMAT)
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level)
+    return logger
 
 if __name__ == "__main__":
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.INFO)
+    logger = get_logger()
     main()
