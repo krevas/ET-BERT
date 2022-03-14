@@ -3,8 +3,11 @@ This script provides an exmaple to wrap UER-py for classification.
 """
 import random
 import argparse
+import logging
+
 import torch
 import torch.nn as nn
+
 from uer.layers import *
 from uer.encoders import *
 from uer.utils.vocab import Vocab
@@ -201,7 +204,7 @@ def read_dataset(args, path):
                             src_dataset.append(src)
                             seg_dataset.append([1] * len(src))
                     else:
-                        print(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
+                        logger.debug(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
                 ### source codes as below
                 # src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a))
                 # seg = [1] * len(src)
@@ -225,7 +228,7 @@ def read_dataset(args, path):
                             src_dataset[index].append(0)
                             seg_dataset[index].append(0)
                 else:
-                    print(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
+                    logger.debug(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
                 # src_dataset,seg_dataset [5 x 128] -> src,seg [640]
                 # src = [data for data_list in src_dataset for data in data_list]
                 # seg = [data for data_list in seg_dataset for data in data_list]
@@ -237,8 +240,8 @@ def read_dataset(args, path):
                 else:
                     dataset.append((src, tgt, seg))
         except Exception as e:
-            print(path)
-            print(e)
+            logger.error(path)
+            logger.error(e)
 
     return dataset
 
@@ -305,16 +308,16 @@ def evaluate(args, dataset, print_confusion_matrix=False):
         correct += torch.sum(pred == gold).item()
 
     if print_confusion_matrix:
-        print("Confusion matrix:")
-        print(confusion)
-        print("Report precision, recall, and f1:")
+        logger.info("Confusion matrix:")
+        logger.info(confusion)
+        logger.info("Report precision, recall, and f1:")
         for i in range(confusion.size()[0]):
             p = confusion[i, i].item() / confusion[i, :].sum().item()
             r = confusion[i, i].item() / confusion[:, i].sum().item()
             f1 = 2 * p * r / (p + r)
-            print(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
+            logger.info(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
 
-    print(
+    logger.info(
         f"Acc. (Correct/Total): {(correct / len(dataset)):.4f} ({correct}/{len(dataset)}) "
     )
     return correct / len(dataset), confusion
@@ -391,8 +394,8 @@ def main():
 
     args.train_steps = int(instances_num * args.epochs_num / batch_size) + 1
 
-    print(f"Batch size: {batch_size}")
-    print(f"The number of training instances: {instances_num}")
+    logger.info(f"Batch size: {batch_size}")
+    logger.info(f"The number of training instances: {instances_num}")
 
     optimizer, scheduler = build_optimizer(args, model)
 
@@ -409,13 +412,13 @@ def main():
         args.amp = amp
 
     if torch.cuda.device_count() > 1:
-        print(f"{torch.cuda.device_count()} GPUs are available. Let's use them.")
+        logger.info(f"{torch.cuda.device_count()} GPUs are available. Let's use them.")
         model = torch.nn.DataParallel(model)
     args.model = model
 
     total_loss, result, best_result = 0.0, 0.0, 0.0
 
-    print("Start training.")
+    logger.info("Start training.")
 
     for epoch in range(1, args.epochs_num + 1):
         model.train()
@@ -434,7 +437,7 @@ def main():
             )
             total_loss += loss.item()
             if (i + 1) % args.report_steps == 0:
-                print(
+                logger.info(
                     f"Epoch id: {epoch}, Training steps: {i + 1}, Avg loss: {(total_loss / args.report_steps):.3f}"
                 )
                 total_loss = 0.0
@@ -446,7 +449,7 @@ def main():
 
     # Evaluation phase.
     if args.test_path is not None:
-        print("Test set evaluation.")
+        logger.info("Test set evaluation.")
         if torch.cuda.device_count() > 1:
             model.module.load_state_dict(
                 torch.load(args.output_model_path, map_location="cuda")
@@ -457,4 +460,6 @@ def main():
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
     main()
