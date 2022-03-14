@@ -37,8 +37,8 @@ class Classifier(nn.Module):
             seg: [batch_size x seq_length]
         """
         ### src,seg [bz x 640] -> [bz x 5 x 128], set seq_length = 128
-        batch_size_num = src.shape[0]
-        seq_length = src.shape[1] // 5
+        # batch_size_num = src.shape[0]
+        # seq_length = src.shape[1] // 5
         # src = src.view(batch_size_num,5,seq_length)
         # Embedding.
         emb_data = self.embedding(src, seg)
@@ -98,7 +98,7 @@ def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
-            torch.load(args.pretrained_model_path, map_location="cpu"), strict=False
+            torch.load(args.pretrained_model_path, map_location="cuda"), strict=False
         )
     else:
         # Initialize with normal distribution.
@@ -372,8 +372,7 @@ def main():
     # Load or initialize parameters.
     load_or_initialize_parameters(args, model)
 
-    # args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    args.device = torch.device("cpu")
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = model.to(args.device)
 
     # Training phase.
@@ -456,7 +455,7 @@ def main():
         print("Test set evaluation.")
         if torch.cuda.device_count() > 1:
             model.module.load_state_dict(
-                torch.load(args.output_model_path, map_location="cuda:2")
+                torch.load(args.output_model_path, map_location="cuda")
             )
         else:
             model.load_state_dict(torch.load(args.output_model_path))

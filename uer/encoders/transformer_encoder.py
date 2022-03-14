@@ -21,8 +21,8 @@ class TransformerEncoder(nn.Module):
         self.layernorm_positioning = args.layernorm_positioning
         self.relative_position_embedding = args.relative_position_embedding
 
-        ###
-        self.margin_V = torch.nn.Parameter(torch.randn(args.emb_size, 1))
+        self.margin_V = torch.nn.Parameter(torch.randn(args.emb_size, 1)).to('cuda')
+        self.margin_V = self.margin_V.squeeze()
 
         has_bias = bool(1 - args.remove_transformer_bias)
 
@@ -103,5 +103,5 @@ class TransformerEncoder(nn.Module):
         if self.layernorm_positioning == "pre":
             return self.layer_norm(hidden) * self.margin_V
         else:
-            hidden = hidden * self.margin_V
+            hidden = torch.mul(hidden, self.margin_V)
             return hidden
