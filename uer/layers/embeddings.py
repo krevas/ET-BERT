@@ -66,9 +66,9 @@ class WordPosSegEmbedding(nn.Module):
         self.remove_embedding_layernorm = args.remove_embedding_layernorm
         self.dropout = nn.Dropout(args.dropout)
         self.max_seq_length = args.max_seq_length
-        self.word_embedding = nn.Embedding(vocab_size, args.emb_size, device=args.device)
-        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size, device=args.device)
-        self.segment_embedding = nn.Embedding(3, args.emb_size, device=args.device)
+        self.word_embedding = nn.Embedding(vocab_size, args.emb_size).to(args.device)
+        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size).to(args.device)
+        self.segment_embedding = nn.Embedding(3, args.emb_size).to(args.device)
         if not self.remove_embedding_layernorm:
             self.layer_norm = LayerNorm(args.emb_size)
 
