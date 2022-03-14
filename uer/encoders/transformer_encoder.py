@@ -21,19 +21,19 @@ class TransformerEncoder(nn.Module):
         self.layernorm_positioning = args.layernorm_positioning
         self.relative_position_embedding = args.relative_position_embedding
 
-        self.margin_V = torch.nn.Parameter(torch.randn(args.emb_size, 1)).to('cuda')
+        self.margin_V = torch.nn.Parameter(torch.randn(args.emb_size, 1)).to(args.device)
         self.margin_V = self.margin_V.squeeze()
 
         has_bias = bool(1 - args.remove_transformer_bias)
 
         if self.factorized_embedding_parameterization:
-            self.linear = nn.Linear(args.emb_size, args.hidden_size)
+            self.linear = nn.Linear(args.emb_size, args.hidden_size).to(args.device)
 
         if self.parameter_sharing:
-            self.transformer = TransformerLayer(args)
+            self.transformer = TransformerLayer(args).to(args.device)
         else:
             self.transformer = nn.ModuleList(
-                [TransformerLayer(args) for _ in range(self.layers_num)]
+                [TransformerLayer(args).to(args.device) for _ in range(self.layers_num)]
             )
         if self.layernorm_positioning == "pre":
             if args.layernorm == "t5":
