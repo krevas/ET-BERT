@@ -1,23 +1,17 @@
 """
   This script provides an exmaple to wrap UER-py for classification inference.
 """
-import sys
-import os
-import torch
 import argparse
-import collections
-import torch.nn as nn
 
-uer_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-sys.path.append(uer_dir)
+import torch
+import torch.nn as nn
 
 from uer.utils.constants import *
 from uer.utils import *
 from uer.utils.config import load_hyperparam
-from uer.utils.seed import set_seed
 from uer.model_loader import load_model
 from uer.opts import infer_opts
-from run_classifier import Classifier
+from finetuning import Classifier
 
 
 def batch_loader(batch_size, src, seg):
@@ -104,11 +98,17 @@ def main():
     parser.add_argument(
         "--output_prob", action="store_true", help="Write probabilities to output file."
     )
+    parser.add_argument(
+        "--multi_gpu", action="store_true", help="Using multi GPU"
+    )
 
     args = parser.parse_args()
 
     # Load the hyperparameters from the config file.
     args = load_hyperparam(args)
+    
+    # Set device
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Build tokenizer.
     args.tokenizer = str2tokenizer[args.tokenizer](args)
@@ -119,9 +119,8 @@ def main():
     model = load_model(model, args.load_model_path)
 
     # For simplicity, we use DataParallel wrapper to use multiple GPUs.
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-    if torch.cuda.device_count() > 1:
+    model = model.to(args.device)
+    if args.multi_gpu:
         print(
             "{} GPUs are available. Let's use them.".format(torch.cuda.device_count())
         )
@@ -147,8 +146,8 @@ def main():
             f.write("\t" + "prob")
         f.write("\n")
         for i, (src_batch, seg_batch) in enumerate(batch_loader(batch_size, src, seg)):
-            src_batch = src_batch.to(device)
-            seg_batch = seg_batch.to(device)
+            src_batch = src_batch.to(args.device)
+            seg_batch = seg_batch.to(args.device)
             with torch.no_grad():
                 _, logits = model(src_batch, None, seg_batch)
 
