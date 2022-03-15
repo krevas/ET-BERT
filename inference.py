@@ -19,10 +19,14 @@ def batch_loader(batch_size, src, seg):
     for i in range(instances_num // batch_size):
         src_batch = src[i * batch_size : (i + 1) * batch_size, :]
         seg_batch = seg[i * batch_size : (i + 1) * batch_size, :]
+        src_batch = src_batch.view(batch_size, 1, src_batch.size(-1))
+        seg_batch = seg_batch.view(batch_size, 1, seg_batch.size(-1))
         yield src_batch, seg_batch
     if instances_num > instances_num // batch_size * batch_size:
         src_batch = src[instances_num // batch_size * batch_size :, :]
         seg_batch = seg[instances_num // batch_size * batch_size :, :]
+        src_batch = src_batch.view(batch_size, 1, src_batch.size(-1))
+        seg_batch = seg_batch.view(batch_size, 1, seg_batch.size(-1))
         yield src_batch, seg_batch
 
 
@@ -108,7 +112,7 @@ def main():
     args = load_hyperparam(args)
     
     # Set device
-    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    args.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
     # Build tokenizer.
     args.tokenizer = str2tokenizer[args.tokenizer](args)
