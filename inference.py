@@ -25,8 +25,8 @@ def batch_loader(batch_size, src, seg):
     if instances_num > instances_num // batch_size * batch_size:
         src_batch = src[instances_num // batch_size * batch_size :, :]
         seg_batch = seg[instances_num // batch_size * batch_size :, :]
-        src_batch = src_batch.view(batch_size, 1, src_batch.size(-1))
-        seg_batch = seg_batch.view(batch_size, 1, seg_batch.size(-1))
+        src_batch = src_batch.view(instances_num-(instances_num // batch_size * batch_size), 1, src_batch.size(-1))
+        seg_batch = seg_batch.view(instances_num-(instances_num // batch_size * batch_size), 1, seg_batch.size(-1))
         yield src_batch, seg_batch
 
 
