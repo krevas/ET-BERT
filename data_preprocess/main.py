@@ -2,13 +2,10 @@
 # -*- coding:utf-8 -*-
 
 import os
-import csv
 import json
 import random
 import binascii
 
-import tqdm
-import numpy as np
 import scapy.all as scapy
 from flowcontainer.extractor import extract
 from tokenizers import Tokenizer, models, pre_tokenizers, decoders, trainers, processors
