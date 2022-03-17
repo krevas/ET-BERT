@@ -1,8 +1,10 @@
 import os
 import random
 import pickle
+from multiprocessing import Pool, Process
+
 import torch
-from multiprocessing import Pool
+
 from uer.utils.constants import *
 from uer.utils.tokenizers import *
 from uer.utils.misc import count_lines
@@ -244,16 +246,18 @@ class Dataset(object):
         if workers_num == 1:
             self.worker(0, 0, lines_num)
         else:
-            pool = Pool(workers_num)
+            procs = []
             for i in range(workers_num):
                 start = i * lines_num // workers_num
                 end = (i + 1) * lines_num // workers_num
-                pool.apply_async(func=self.worker, args=[i, start, end])
-            pool.close()
-            pool.join()
+                proc = Process(target=self.worker, args=[i, start, end])
+                procs.append(proc)
+                proc.start()
+            for proc in procs:
+                proc.join()
 
         # Merge datasets.
-        merge_dataset(self.dataset_path, workers_num)
+        # merge_dataset(self.dataset_path, workers_num)
 
     def worker(self, proc_id, start, end):
         raise NotImplementedError()
@@ -399,9 +403,9 @@ class BertDataset(Dataset):
                     is_tov = 0
                     random_num = random.random()
                     ###
-                    if len(current_chunk) == 1:
-                        print(len(document))
-                        print(1)
+                    # if len(current_chunk) == 1:
+                    #     print(len(document))
+                    #     print(1)
 
                     if len(current_chunk) == 1 or random_num < 0.3:
                         is_random_next = 1
@@ -431,12 +435,15 @@ class BertDataset(Dataset):
                             tokens_b.extend(current_chunk[j])
 
                         tov_num = range(0, len(tokens_b))
-                        random_tov = random.sample(tov_num, 20)
-                        for i in range(0, 20, 2):
-                            tokens_b[random_tov[i]], tokens_b[random_tov[i + 1]] = (
-                                tokens_b[random_tov[i + 1]],
-                                tokens_b[random_tov[i]],
-                            )
+                        try:
+                            random_tov = random.sample(tov_num, 20)
+                            for i in range(0, 20, 2):
+                                tokens_b[random_tov[i]], tokens_b[random_tov[i + 1]] = (
+                                    tokens_b[random_tov[i + 1]],
+                                    tokens_b[random_tov[i]],
+                                )
+                        except:
+                            pass
 
                         # num_unused_segments = len(current_chunk) - a_end
                         # i -= num_unused_segments
