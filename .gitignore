@@ -8,6 +8,8 @@ models/finetuned*.bin
 models/pretrained*.bin
 *.pt
 nohup.out*
+datasets/ai-security/*.csv
+datasets/ai-security/*.tsv
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
