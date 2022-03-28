@@ -68,6 +68,9 @@ def generate_attack_data(pcap_dir_path, output_file_path):
 
 def generate_normal_data(pcap_dir_path, output_file_path):
 
+    writer = open(output_file_path, "w")
+    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
+
     line_cnt = 0
 
     for pcap_file_path in sorted(glob(os.path.join(pcap_dir_path, "*"))):
@@ -76,10 +79,6 @@ def generate_normal_data(pcap_dir_path, output_file_path):
         source_ip = re.findall(r"[0-9]+(?:\.[0-9]+){3}", pcap_file_path)[-1]
         display_filter = f"ip.src == {source_ip} and http"
         pcap = pyshark.FileCapture(pcap_file_path, display_filter=display_filter)
-
-        writer = open(output_file_path, "w")
-
-        writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
 
         try:
             for pkt in pcap:
