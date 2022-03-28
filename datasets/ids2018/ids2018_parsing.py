@@ -43,24 +43,24 @@ def generate_attack_data_20180222(pcap_dir_path, output_file_path):
     writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
 
     line_cnt = 0
-    try:
-        for pkt in pcap:
-            frame_time = pkt.frame_info.time.split(" ")[3][:8]
-            if frame_time >= "23:04:00" or frame_time <= "00:05:00":
-                writer.write(
-                    f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
-                writer.write(
-                    f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
-                writer.write(
-                    f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            line_cnt += 1
-    except:
-        pcap.close()
+    
+    for pkt in pcap:
+        frame_time = pkt.frame_info.time.split(" ")[3][:8]
+        if frame_time >= "23:04:00" or frame_time <= "00:05:00":
+            writer.write(
+                f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
+            writer.write(
+                f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
+            writer.write(
+                f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        line_cnt += 1
+    
+    pcap.close()
     writer.close()
 
     logger.info(f"Attack data size : {line_cnt}")
@@ -77,24 +77,24 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
     writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
 
     line_cnt = 0
-    try:
-        for pkt in pcap:
-            frame_time = pkt.frame_info.time.split(" ")[3][:8]
-            if frame_time >= "23:04:00" or frame_time <= "00:05:00":
-                writer.write(
-                    f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
-                writer.write(
-                    f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
-                writer.write(
-                    f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
-                )
-            line_cnt += 1
-    except:
-        pcap.close()
+    
+    for pkt in pcap:
+        frame_time = pkt.frame_info.time.split(" ")[3][:8]
+        if frame_time >= "23:04:00" or frame_time <= "00:05:00":
+            writer.write(
+                f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
+            writer.write(
+                f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
+            writer.write(
+                f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )
+        line_cnt += 1
+    
+    pcap.close()
     writer.close()
 
     logger.info(f"Attack data size : {line_cnt}")
