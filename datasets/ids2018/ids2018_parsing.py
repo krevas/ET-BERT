@@ -77,6 +77,9 @@ def generate_normal_data(pcap_dir_path, output_file_path):
         logger.info(f"Loading : {pcap_file_path}")
 
         source_ip = re.findall(r"[0-9]+(?:\.[0-9]+){3}", pcap_file_path)[-1]
+        if source_ip == "172.31.69.28":
+            logger.info(f'Attack file : {pcap_file_path}')
+            continue
         display_filter = f"ip.src == {source_ip} and http"
         pcap = pyshark.FileCapture(pcap_file_path, display_filter=display_filter)
 
