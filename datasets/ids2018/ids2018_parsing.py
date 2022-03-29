@@ -31,6 +31,70 @@ import pandas as pd
 
 nest_asyncio.apply()
 
+def generate_attack_data_20180215(pcap_dir_path, output_file_path):
+    attack_pcap = "UCAP172.31.69.25"
+    display_filter = "ip.src == 18.219.211.138 and http"
+
+    pcap = pyshark.FileCapture(
+        os.path.join(pcap_dir_path, attack_pcap), display_filter=display_filter
+    )
+
+    writer = open(output_file_path, "w", encoding="utf-8")
+    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
+
+    line_cnt = 0
+    
+    for pkt in pcap:
+        frame_time = pkt.frame_info.time.split(" ")[3][:8]
+        if pkt.http.get("_ws_expert_message"):
+            expert_message = pkt.http.get("_ws_expert_message")
+        elif pkt.http.get("expert_message"):
+            expert_message = pkt.http.get("expert_message")
+        else:
+            continue
+        writer.write(
+                f"DoS-GoldenEye\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )  
+        line_cnt += 1
+    
+    pcap.close()
+
+    writer.close()
+
+    logger.info(f"Attack data size : {line_cnt}")
+
+def generate_attack_data_20180216(pcap_dir_path, output_file_path):
+    attack_pcap = "UCAP172.31.69.25-part1.pcap"
+    display_filter = "ip.src == 18.219.193.20 and http"
+
+    pcap = pyshark.FileCapture(
+        os.path.join(pcap_dir_path, attack_pcap), display_filter=display_filter
+    )
+
+    writer = open(output_file_path, "w", encoding="utf-8")
+    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\n")
+
+    line_cnt = 0
+    
+    for pkt in pcap:
+        frame_time = pkt.frame_info.time.split(" ")[3][:8]
+        if pkt.http.get("_ws_expert_message"):
+            expert_message = pkt.http.get("_ws_expert_message")
+        elif pkt.http.get("expert_message"):
+            expert_message = pkt.http.get("expert_message")
+        else:
+            continue
+        writer.write(
+                f"DoS-Hulk\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+            )  
+        line_cnt += 1
+    
+    pcap.close()
+
+    writer.close()
+
+    logger.info(f"Attack data size : {line_cnt}")
+
 def generate_attack_data_20180222(pcap_dir_path, output_file_path):
     attack_pcap = "UCAP172.31.69.28"
     display_filter = "ip.src == 18.218.115.60 and http"
@@ -168,9 +232,9 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    file_date = "20180223"
+    file_date = "20180216"
 
-    generate_attack_data_20180223(
+    generate_attack_data_20180216(
         pcap_dir_path=f"./pcap/{file_date}/pcap",
         output_file_path=f"./raw/{file_date}/attack.tsv",
     )
@@ -180,13 +244,13 @@ if __name__ == "__main__":
         output_file_path=f"./raw/{file_date}/attack_no_dup.tsv",
     )
 
-    # generate_normal_data(
-    #     pcap_dir_path=f"./pcap/{file_date}",
-    #     output_file_path=f"./raw/{file_date}/normal.tsv",
-    #     victim_ip="172.31.69.28"
-    # )
+    generate_normal_data(
+        pcap_dir_path=f"./pcap/{file_date}/pcap",
+        output_file_path=f"./raw/{file_date}/normal.tsv",
+        victim_ip="172.31.69.25"
+    )
 
-    # remove_duplicate(
-    #     input_file_path=f"./raw/{file_date}/normal.tsv",
-    #     output_file_path=f"./raw/{file_date}/normal_no_dup.tsv",
-    # )
+    remove_duplicate(
+        input_file_path=f"./raw/{file_date}/normal.tsv",
+        output_file_path=f"./raw/{file_date}/normal_no_dup.tsv",
+    )

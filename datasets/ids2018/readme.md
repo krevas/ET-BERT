@@ -7,6 +7,8 @@
 - _no_dup 파일은 expert_message와 request_full_uri 기준으로 중복이 제거된 파일입니다.
 
 - 날짜별 공격 유형은 다음과 같습니다.
+	- Thur-15-02-2018 : DoS-GoldenEye
+	- Fri-16-02-2018 : DoS-Hulk
 	- Thur-22-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
 	- Fri-23-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
 
