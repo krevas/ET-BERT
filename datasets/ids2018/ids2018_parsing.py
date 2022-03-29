@@ -46,17 +46,23 @@ def generate_attack_data_20180222(pcap_dir_path, output_file_path):
     
     for pkt in pcap:
         frame_time = pkt.frame_info.time.split(" ")[3][:8]
-        if frame_time >= "23:04:00" or frame_time <= "00:05:00":
+        if pkt.http.get("_ws_expert_message"):
+            expert_message = pkt.http.get("_ws_expert_message")
+        elif pkt.http.get("expert_message"):
+            expert_message = pkt.http.get("expert_message")
+        else:
+            continue
+        if frame_time >= "23:13:00" or frame_time <= "00:24:00":
             writer.write(
-                f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"Brute Force -Web\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
-        elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
+        elif frame_time >= "02:50:00" and frame_time <= "03:30:00":
             writer.write(
-                f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"Brute Force -XSS\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
-        elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
+        elif frame_time >= "05:14:00" and frame_time <= "05:30:00":
             writer.write(
-                f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"SQL Injection\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
         line_cnt += 1
     
@@ -80,17 +86,23 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
     
     for pkt in pcap:
         frame_time = pkt.frame_info.time.split(" ")[3][:8]
+        if pkt.http.get("_ws_expert_message"):
+            expert_message = pkt.http.get("_ws_expert_message")
+        elif pkt.http.get("expert_message"):
+            expert_message = pkt.http.get("expert_message")
+        else:
+            continue
         if frame_time >= "23:04:00" or frame_time <= "00:05:00":
             writer.write(
-                f"Brute Force -Web\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"Brute Force -Web\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
         elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
             writer.write(
-                f"Brute Force -XSS\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"Brute Force -XSS\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
         elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
             writer.write(
-                f"SQL Injection\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                f"SQL Injection\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
             )
         line_cnt += 1
     
@@ -119,7 +131,12 @@ def generate_normal_data(pcap_dir_path, output_file_path, victim_ip="172.31.69.2
 
         for pkt in pcap:
             try:
-                if pkt.http.get("expert_message"):
+                if pkt.http.get("_ws_expert_message"):
+                    writer.write(
+                        f"Normal\t{pkt.frame_info.time}\t{pkt.http.get('_ws_expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
+                    )
+                    line_cnt += 1
+                elif pkt.http.get("expert_message"):
                     writer.write(
                         f"Normal\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\n"
                     )
@@ -154,7 +171,7 @@ if __name__ == "__main__":
     file_date = "20180223"
 
     generate_attack_data_20180223(
-        pcap_dir_path=f"./pcap/{file_date}",
+        pcap_dir_path=f"./pcap/{file_date}/pcap",
         output_file_path=f"./raw/{file_date}/attack.tsv",
     )
 
@@ -163,13 +180,13 @@ if __name__ == "__main__":
         output_file_path=f"./raw/{file_date}/attack_no_dup.tsv",
     )
 
-    generate_normal_data(
-        pcap_dir_path=f"./pcap/{file_date}",
-        output_file_path=f"./raw/{file_date}/normal.tsv",
-        victim_ip="172.31.69.28"
-    )
+    # generate_normal_data(
+    #     pcap_dir_path=f"./pcap/{file_date}",
+    #     output_file_path=f"./raw/{file_date}/normal.tsv",
+    #     victim_ip="172.31.69.28"
+    # )
 
-    remove_duplicate(
-        input_file_path=f"./raw/{file_date}/normal.tsv",
-        output_file_path=f"./raw/{file_date}/normal_no_dup.tsv",
-    )
+    # remove_duplicate(
+    #     input_file_path=f"./raw/{file_date}/normal.tsv",
+    #     output_file_path=f"./raw/{file_date}/normal_no_dup.tsv",
+    # )
