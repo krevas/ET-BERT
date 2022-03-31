@@ -2,7 +2,9 @@
 
 - 컬럼은 탭 문자로 구분되어 있습니다.
 
-- 파일 구조는 label / time / expert_message / request_full_uri / accept 로 구성되어 있습니다.
+- 파일 구조는 label / time / expert_message / request_full_uri / accept / file_data 로 구성되어 있습니다.
+
+- file_data는 request method가 POST인 경우에 함께 전송된 데이터를 뜻합니다.
 
 - _no_dup 파일은 expert_message와 request_full_uri 기준으로 중복이 제거된 파일입니다.
 
