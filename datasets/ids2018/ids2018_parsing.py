@@ -225,7 +225,7 @@ def remove_duplicate(input_file_path, output_file_path):
     logger.info(f"Output path : {output_file_path}")
     df = pd.read_csv(input_file_path, sep="\t", encoding="utf-8")
     logger.info(f"Input data size : {len(df)}")
-    df = df.drop_duplicates(["expert_message", "request_full_uri"])
+    df = df.drop_duplicates(["expert_message", "request_full_uri", "file_data"])
     logger.info(f"Output data size : {len(df)}")
     df.to_csv(output_file_path, sep="\t", index=False)
 
