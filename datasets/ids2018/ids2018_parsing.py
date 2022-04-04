@@ -5,13 +5,9 @@
 """
     IDS2018 데이터 다운로드 : aws s3 cp --no-sign-request "s3://cse-cic-ids2018/Original Network Traffic and Log data/Friday-23-02-2018/pcap.zip" "./"
     
-    CSE-CIC-IDS2018 Fri-23-02-2018 데이터 기준
+    - 공격 ip와 공격 시간이 사전에 정해져 있고 시간을 기준으로 공격 유형이 다릅니다.
     
-    공격 pcap 파일 : UCAP172.31.69.28
-    
-    - 공격 ip(18.218.115.60)와 공격 시간이 사전에 정해져 있고 시간을 기준으로 공격 유형이 다릅니다.
-    
-    - 위에 공격 pcap 파일을 제외한 pcap에는 모두 정상 데이터이므로 샘플링하여 사용하시면 됩니다.
+    - 공격 pcap 파일을 제외한 pcap에는 모두 정상 데이터이므로 샘플링하여 사용하시면 됩니다.
     
     - pcap파일명에 있는 IP 주소를 ip.src로 설정하고 http로 필터링 해야 합니다.
     
@@ -41,7 +37,7 @@ def generate_attack_data_20180215(pcap_dir_path, output_file_path):
     )
 
     writer = open(output_file_path, "w", encoding="utf-8")
-    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
+    writer.write("label\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
 
     line_cnt = 0
 
@@ -54,7 +50,7 @@ def generate_attack_data_20180215(pcap_dir_path, output_file_path):
         else:
             continue
         writer.write(
-            f"DoS-GoldenEye\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+            f"DoS-GoldenEye\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
         )
         line_cnt += 1
 
@@ -74,7 +70,7 @@ def generate_attack_data_20180216(pcap_dir_path, output_file_path):
     )
 
     writer = open(output_file_path, "w", encoding="utf-8")
-    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
+    writer.write("label\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
 
     line_cnt = 0
 
@@ -87,7 +83,7 @@ def generate_attack_data_20180216(pcap_dir_path, output_file_path):
         else:
             continue
         writer.write(
-            f"DoS-Hulk\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+            f"DoS-Hulk\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
         )
         line_cnt += 1
 
@@ -107,7 +103,7 @@ def generate_attack_data_20180222(pcap_dir_path, output_file_path):
     )
 
     writer = open(output_file_path, "w", encoding="utf-8")
-    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
+    writer.write("labelv\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
 
     line_cnt = 0
 
@@ -121,15 +117,15 @@ def generate_attack_data_20180222(pcap_dir_path, output_file_path):
             continue
         if frame_time >= "23:13:00" or frame_time <= "00:24:00":
             writer.write(
-                f"Brute Force -Web\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"Brute Force -Web\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         elif frame_time >= "02:50:00" and frame_time <= "03:30:00":
             writer.write(
-                f"Brute Force -XSS\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"Brute Force -XSS\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         elif frame_time >= "05:14:00" and frame_time <= "05:30:00":
             writer.write(
-                f"SQL Injection\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"SQL Injection\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         line_cnt += 1
 
@@ -148,7 +144,7 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
     )
 
     writer = open(output_file_path, "w", encoding="utf-8")
-    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
+    writer.write("label\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
 
     line_cnt = 0
 
@@ -162,15 +158,15 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
             continue
         if frame_time >= "23:04:00" or frame_time <= "00:05:00":
             writer.write(
-                f"Brute Force -Web\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"Brute Force -Web\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         elif frame_time >= "02:00:00" and frame_time <= "03:15:00":
             writer.write(
-                f"Brute Force -XSS\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"Brute Force -XSS\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         elif frame_time >= "04:00:00" and frame_time <= "04:20:00":
             writer.write(
-                f"SQL Injection\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                f"SQL Injection\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{expert_message}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
             )
         line_cnt += 1
 
@@ -183,7 +179,7 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
 def generate_normal_data(pcap_dir_path, output_file_path, victim_ip="172.31.69.28"):
 
     writer = open(output_file_path, "w", encoding="utf-8")
-    writer.write("label\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
+    writer.write("label\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
 
     line_cnt = 0
 
@@ -201,12 +197,12 @@ def generate_normal_data(pcap_dir_path, output_file_path, victim_ip="172.31.69.2
             try:
                 if pkt.http.get("_ws_expert_message"):
                     writer.write(
-                        f"Normal\t{pkt.frame_info.time}\t{pkt.http.get('_ws_expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                        f"Normal\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{pkt.http.get('_ws_expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
                     )
                     line_cnt += 1
                 elif pkt.http.get("expert_message"):
                     writer.write(
-                        f"Normal\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
+                        f"Normal\t{pkt.tcp.stream}\t{pkt.ip.src}\t{pkt.tcp.srcport}\t{pkt.ip.dst}\t{pkt.tcp.dstport}\t{pkt.frame_info.time}\t{pkt.http.get('expert_message')}\t{pkt.http.get('request_full_uri')}\t{pkt.http.get('accept')}\t{pkt.http.get('file_data')}\n"
                     )
                     line_cnt += 1
             except:
@@ -236,7 +232,7 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    file_date = "20180222"
+    file_date = "20180216"
 
     generate_attack_data = {
         "20180215": generate_attack_data_20180215,
