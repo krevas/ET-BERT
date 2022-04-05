@@ -176,7 +176,7 @@ def generate_attack_data_20180223(pcap_dir_path, output_file_path):
     logger.info(f"Attack data size : {line_cnt}")
 
 
-def generate_normal_data(pcap_dir_path, output_file_path, victim_ip="172.31.69.28"):
+def generate_normal_data(pcap_dir_path, output_file_path, victim_ip):
 
     writer = open(output_file_path, "w", encoding="utf-8")
     writer.write("label\tstream_index\tsrc_ip\tsrc_port\tdst_ip\tdst_port\ttime\texpert_message\trequest_full_uri\taccept\tfile_data\n")
@@ -232,13 +232,20 @@ if __name__ == "__main__":
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.INFO)
 
-    file_date = "20180216"
+    file_date = "20180223"
 
     generate_attack_data = {
         "20180215": generate_attack_data_20180215,
         "20180216": generate_attack_data_20180216,
         "20180222": generate_attack_data_20180222,
         "20180223": generate_attack_data_20180223,
+    }
+
+    victim_ip = {
+        "20180215": "172.31.69.25",
+        "20180216": "172.31.69.25",
+        "20180222": "172.31.69.28",
+        "20180223": "172.31.69.28",
     }
 
     generate_attack_data[file_date](
@@ -254,7 +261,7 @@ if __name__ == "__main__":
     generate_normal_data(
         pcap_dir_path=f"./pcap/{file_date}/pcap",
         output_file_path=f"./raw/{file_date}/normal.tsv",
-        victim_ip="172.31.69.25",
+        victim_ip=victim_ip[file_date],
     )
 
     remove_duplicate(
