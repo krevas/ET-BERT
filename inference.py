@@ -1,10 +1,12 @@
 """
   This script provides an exmaple to wrap UER-py for classification inference.
 """
+import time
 import argparse
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
 
 from uer.utils.constants import *
 from uer.utils import *
@@ -14,26 +16,10 @@ from uer.opts import infer_opts
 from finetuning import Classifier
 
 
-def batch_loader(batch_size, src, seg):
-    instances_num = src.size()[0]
-    for i in range(instances_num // batch_size):
-        src_batch = src[i * batch_size : (i + 1) * batch_size, :]
-        seg_batch = seg[i * batch_size : (i + 1) * batch_size, :]
-        src_batch = src_batch.view(batch_size, 1, src_batch.size(-1))
-        seg_batch = seg_batch.view(batch_size, 1, seg_batch.size(-1))
-        yield src_batch, seg_batch
-    if instances_num > instances_num // batch_size * batch_size:
-        src_batch = src[instances_num // batch_size * batch_size :, :]
-        seg_batch = seg[instances_num // batch_size * batch_size :, :]
-        src_batch = src_batch.view(instances_num-(instances_num // batch_size * batch_size), 1, src_batch.size(-1))
-        seg_batch = seg_batch.view(instances_num-(instances_num // batch_size * batch_size), 1, seg_batch.size(-1))
-        yield src_batch, seg_batch
-
-
-def read_dataset(args, path):
-    dataset, columns = [], {}
-    with open(path, mode="r", encoding="utf-8") as f:
-        for line_id, line in enumerate(f):
+class ETDataset(Dataset):
+    def __init__(self, args, path):
+        self.dataset, columns = [], {}
+        for line_id, line in enumerate(open(path, mode="r", encoding="utf-8")):
             if line_id == 0:
                 line = line.strip().split("\t")
                 for i, column_name in enumerate(line):
@@ -63,9 +49,25 @@ def read_dataset(args, path):
             while len(src) < args.seq_length:
                 src.append(0)
                 seg.append(0)
-            dataset.append((src, seg))
+            src = torch.LongTensor(src)
+            seg = torch.LongTensor(seg)
 
-    return dataset
+            src = src.view(1, src.size(-1))
+            seg = seg.view(1, seg.size(-1))
+
+            self.dataset.append((src, seg))
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return self.dataset[index]
+
+
+def to_numpy(tensor):
+    return (
+        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    )
 
 
 def main():
@@ -102,46 +104,50 @@ def main():
     parser.add_argument(
         "--output_prob", action="store_true", help="Write probabilities to output file."
     )
+    parser.add_argument("--multi_gpu", action="store_true", help="Using multi GPU")
+
+    parser.add_argument("--batch_size", type=int, default=8, help="Batch size.")
+
     parser.add_argument(
-        "--multi_gpu", action="store_true", help="Using multi GPU"
+        "--num_worker", type=int, default=1, help="Number of dataloader worker."
     )
 
     args = parser.parse_args()
 
-    # Load the hyperparameters from the config file.
     args = load_hyperparam(args)
-    
-    # Set device
-    args.device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
-    # Build tokenizer.
+    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
     args.tokenizer = str2tokenizer[args.tokenizer](args)
 
-    # Build classification model and load parameters.
+    if args.num_worker > 1:
+        torch.multiprocessing.set_start_method("spawn")
+
     args.soft_targets, args.soft_alpha = False, False
     model = Classifier(args)
     model = load_model(model, args.load_model_path)
 
-    # For simplicity, we use DataParallel wrapper to use multiple GPUs.
     model = model.to(args.device)
+
     if args.multi_gpu:
         print(
             "{} GPUs are available. Let's use them.".format(torch.cuda.device_count())
         )
         model = torch.nn.DataParallel(model)
 
-    dataset = read_dataset(args, args.test_path)
+    dataset = ETDataset(args, args.test_path)
 
-    src = torch.LongTensor([sample[0] for sample in dataset])
-    seg = torch.LongTensor([sample[1] for sample in dataset])
-
-    batch_size = args.batch_size
-    instances_num = src.size()[0]
-
-    print("The number of prediction instances: ", instances_num)
+    loader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_worker,
+        pin_memory=True,
+    )
 
     model.eval()
 
+    full_start_time = time.time()
     with open(args.prediction_path, mode="w", encoding="utf-8") as f:
         f.write("label")
         if args.output_logits:
@@ -149,25 +155,35 @@ def main():
         if args.output_prob:
             f.write("\t" + "prob")
         f.write("\n")
-        for i, (src_batch, seg_batch) in enumerate(batch_loader(batch_size, src, seg)):
-            src_batch = src_batch.to(args.device)
-            seg_batch = seg_batch.to(args.device)
+
+        for batch in iter(loader):
+            src_batch, seg_batch = batch
+
             with torch.no_grad():
-                _, logits = model(src_batch, None, seg_batch)
+                _, logits = model(
+                    src_batch.to(args.device), None, seg_batch.to(args.device)
+                )
 
-            pred = torch.argmax(logits, dim=1)
-            pred = pred.cpu().numpy().tolist()
-            prob = nn.Softmax(dim=1)(logits)
-            logits = logits.cpu().numpy().tolist()
-            prob = prob.cpu().numpy().tolist()
+            preds = to_numpy(torch.argmax(logits, dim=1))
 
-            for j in range(len(pred)):
-                f.write(str(pred[j]))
+            if args.output_prob:
+                prob = nn.Softmax(dim=1)(logits)
+                prob = to_numpy(prob)
+
+            if args.output_logits:
+                logits = to_numpy(logits)
+
+            for idx, pred in enumerate(preds):
+                f.write(f"{str(pred)}")
+
                 if args.output_logits:
-                    f.write("\t" + " ".join([str(v) for v in logits[j]]))
+                    f.write("\t" + " ".join([str(v) for v in logits[idx]]))
                 if args.output_prob:
-                    f.write("\t" + " ".join([str(v) for v in prob[j]]))
-                f.write("\n")
+                    f.write("\t" + " ".join([str(v) for v in prob[idx]]))
+
+                f.write(f"\n")
+
+    print(f"inference time--{time.time()-full_start_time}s seconds---")
 
 
 if __name__ == "__main__":
