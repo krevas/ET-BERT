@@ -219,5 +219,4 @@ def infer_opts(parser):
     model_opts(parser)
 
     # Inference options.
-    parser.add_argument("--batch_size", type=int, default=64, help="Batch size.")
     parser.add_argument("--seq_length", type=int, default=128, help="Sequence length.")

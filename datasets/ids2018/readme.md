@@ -1,8 +1,12 @@
 # 데이터 설명
 
-- 컬럼은 탭 문자로 구분되어 있습니다.
+- pcap/ : 원본 pcap 파일
 
-- 파일 구조는 label / stream_index / src_ip / src_port / dst_ip / dst_port / time / expert_message / request_full_uri / accept / file_data 로 구성되어 있습니다.
+- raw/ : pcap에서 http/https 패킷만 추출한 데이터
+
+- 추출된 데이터의 컬럼은 탭 문자로 구분되어 있습니다.
+
+- 파일 구조는 label / stream_index / src_ip / src_port / dst_ip / dst_port / tcp_seg_len / time / expert_message / request_full_uri / accept / file_data 로 구성되어 있습니다.
 
 - stream_index가 같으면 동일한 TCP 세션입니다. (src_ip / src_port / dst_ip / dst_port가 모두 동일하면 같은 stream_index를 가짐)
 
@@ -17,10 +21,10 @@
 - _no_dup 파일은 expert_message와 request_full_uri, file_data 기준으로 중복이 제거된 파일입니다.
 
 - 날짜별 공격 유형은 다음과 같습니다.
-	- Thur-15-02-2018 : DoS-GoldenEye
-	- Fri-16-02-2018 : DoS-Hulk
-	- Thur-22-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
-	- Fri-23-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
+	- Thursday-15-02-2018 : DoS-GoldenEye
+	- Friday-16-02-2018 : DoS-Hulk
+	- Thursday-22-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
+	- Friday-23-02-2018 : Brute Force -Web / Brute Force -XSS / SQL Injection
 
 - 데이터셋 homepage : https://www.unb.ca/cic/datasets/ids-2018.html
 
