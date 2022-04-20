@@ -16,7 +16,7 @@ from uer.opts import infer_opts
 from finetuning import Classifier
 
 
-class ETDataset(Dataset):
+class ETInferDataset(Dataset):
     def __init__(self, args, path):
         self.dataset, columns = [], {}
         for line_id, line in enumerate(open(path, mode="r", encoding="utf-8")):
@@ -135,7 +135,7 @@ def main():
         )
         model = torch.nn.DataParallel(model)
 
-    dataset = ETDataset(args, args.test_path)
+    dataset = ETInferDataset(args, args.test_path)
 
     loader = DataLoader(
         dataset,
@@ -161,7 +161,7 @@ def main():
 
             with torch.no_grad():
                 _, logits = model(
-                    src_batch.to(args.device), None, seg_batch.to(args.device)
+                    src_batch.to(args.device), seg_batch.to(args.device)
                 )
 
             preds = to_numpy(torch.argmax(logits, dim=1))

@@ -7,6 +7,7 @@ import logging
 
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, Dataset
 
 from uer.layers import *
 from uer.encoders import *
@@ -31,17 +32,7 @@ class Classifier(nn.Module):
         self.output_layer_1 = nn.Linear(args.hidden_size, args.hidden_size)
         self.output_layer_2 = nn.Linear(args.hidden_size, self.labels_num)
 
-    def forward(self, src, tgt, seg, soft_tgt=None):
-        """
-        Args:
-            src: [batch_size x seq_length]
-            tgt: [batch_size]
-            seg: [batch_size x seq_length]
-        """
-        ### src,seg [bz x 640] -> [bz x 5 x 128], set seq_length = 128
-        # batch_size_num = src.shape[0]
-        # seq_length = src.shape[1] // 5
-        # src = src.view(batch_size_num,5,seq_length)
+    def forward(self, src, seg, tgt=None, soft_tgt=None):
         # Embedding.
         emb_data = self.embedding(src, seg)
         # Encoder.
@@ -50,7 +41,6 @@ class Classifier(nn.Module):
             emb = emb_data[each_batch_size]
             seg_data = seg[each_batch_size]
             output_emb = self.encoder(emb, seg_data)
-            ### output [5 x seq_length x 768] -> [5 x 1 x 768]
             output_data = output_emb[:, :1, :]
             ### delete dim of seq_length, expand dim of batch
             cls_output = output_data.squeeze(1).unsqueeze(0)
@@ -82,6 +72,68 @@ class Classifier(nn.Module):
             return None, logits
 
 
+class ETTrainDataset(Dataset):
+    def __init__(self, args, path):
+        self.dataset, columns = [], {}
+        for line_id, line in enumerate(open(path, mode="r", encoding="utf-8")):
+            if line_id == 0:
+                for i, column_name in enumerate(line.strip().split("\t")):
+                    columns[column_name] = i
+                continue
+            line = line[:-1].split("\t")
+            tgt = int(line[columns["label"]])
+            if args.soft_targets and "logits" in columns.keys():
+                soft_tgt = [
+                    float(value) for value in line[columns["logits"]].split(" ")
+                ]
+            if "text_b" not in columns:  # Sentence classification.
+                text_a = line[columns["text_a"]]
+                src = args.tokenizer.convert_tokens_to_ids(
+                    [CLS_TOKEN] + args.tokenizer.tokenize(text_a)
+                )
+                seg = [1] * len(src)
+            else:  # Sentence-pair classification.
+                text_a, text_b = line[columns["text_a"]], line[columns["text_b"]]
+                src_a = args.tokenizer.convert_tokens_to_ids(
+                    [CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN]
+                )
+                src_b = args.tokenizer.convert_tokens_to_ids(
+                    args.tokenizer.tokenize(text_b) + [SEP_TOKEN]
+                )
+                src = src_a + src_b
+                seg = [1] * len(src_a) + [2] * len(src_b)
+
+            if len(src) > args.seq_length:
+                src = src[: args.seq_length]
+                seg = seg[: args.seq_length]
+            while len(src) < args.seq_length:
+                src.append(0)
+                seg.append(0)
+
+            src = torch.LongTensor(src)
+            seg = torch.LongTensor(seg)
+
+            src = src.view(1, src.size(-1))
+            seg = seg.view(1, seg.size(-1))
+
+            if args.soft_targets and "logits" in columns.keys():
+                self.dataset.append((src, seg, tgt, soft_tgt))
+            else:
+                self.dataset.append((src, seg, tgt))
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        return self.dataset[index]
+
+
+def to_numpy(tensor):
+    return (
+        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
+    )
+
+
 def count_labels_num(path):
     labels_set, columns = set(), {}
     with open(path, mode="r", encoding="utf-8") as f:
@@ -100,7 +152,8 @@ def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
-            torch.load(args.pretrained_model_path, map_location=args.device), strict=False
+            torch.load(args.pretrained_model_path, map_location=args.device),
+            strict=False,
         )
     else:
         # Initialize with normal distribution.
@@ -150,101 +203,6 @@ def build_optimizer(args, model):
     return optimizer, scheduler
 
 
-def batch_loader(batch_size, src, tgt, seg, soft_tgt=None):
-    instances_num = src.size()[0]
-    for i in range(instances_num // batch_size):
-        src_batch = src[i * batch_size : (i + 1) * batch_size, :]
-        tgt_batch = tgt[i * batch_size : (i + 1) * batch_size]
-        seg_batch = seg[i * batch_size : (i + 1) * batch_size, :]
-        if soft_tgt is not None:
-            soft_tgt_batch = soft_tgt[i * batch_size : (i + 1) * batch_size, :]
-            yield src_batch, tgt_batch, seg_batch, soft_tgt_batch
-        else:
-            yield src_batch, tgt_batch, seg_batch, None
-    if instances_num > instances_num // batch_size * batch_size:
-        src_batch = src[instances_num // batch_size * batch_size :, :]
-        tgt_batch = tgt[instances_num // batch_size * batch_size :]
-        seg_batch = seg[instances_num // batch_size * batch_size :, :]
-        if soft_tgt is not None:
-            soft_tgt_batch = soft_tgt[instances_num // batch_size * batch_size :, :]
-            yield src_batch, tgt_batch, seg_batch, soft_tgt_batch
-        else:
-            yield src_batch, tgt_batch, seg_batch, None
-
-
-def read_dataset(args, path):
-    dataset, columns = [], {}
-
-    with open(path, mode="r", encoding="utf-8") as f:
-        try:
-            for line_id, line in enumerate(f):
-                if line_id == 0:
-                    for i, column_name in enumerate(line.strip().split("\t")):
-                        columns[column_name] = i
-                    continue
-                line = line[:-1].split("\t")
-                tgt = int(line[columns["label"]])
-                if args.soft_targets and "logits" in columns.keys():
-                    soft_tgt = [
-                        float(value) for value in line[columns["logits"]].split(" ")
-                    ]
-
-                src_dataset, seg_dataset = [], []  # not source code
-                if "text_b" not in columns:  # Sentence classification.
-                    text_a = line[columns["text_a"]]
-                    ### source code as up
-                    text_a_list = text_a.split(" | ")
-                    if text_a_list:
-                        for text_a_index in range(len(text_a_list)):
-                            src = args.tokenizer.convert_tokens_to_ids(
-                                [CLS_TOKEN]
-                                + args.tokenizer.tokenize(text_a_list[text_a_index])
-                            )
-                            src_dataset.append(src)
-                            seg_dataset.append([1] * len(src))
-                    else:
-                        logger.debug(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
-                ### source codes as below
-                # src = args.tokenizer.convert_tokens_to_ids([CLS_TOKEN] + args.tokenizer.tokenize(text_a))
-                # seg = [1] * len(src)
-                else:  # Sentence-pair classification.
-                    text_a, text_b = line[columns["text_a"]], line[columns["text_b"]]
-                    src_a = args.tokenizer.convert_tokens_to_ids(
-                        [CLS_TOKEN] + args.tokenizer.tokenize(text_a) + [SEP_TOKEN]
-                    )
-                    src_b = args.tokenizer.convert_tokens_to_ids(
-                        args.tokenizer.tokenize(text_b) + [SEP_TOKEN]
-                    )
-                    src = src_a + src_b
-                    seg = [1] * len(src_a) + [2] * len(src_b)
-
-                if src_dataset:
-                    for index in range(len(src_dataset)):
-                        if len(src_dataset[index]) > args.seq_length:
-                            src_dataset[index] = src_dataset[index][: args.seq_length]
-                            seg_dataset[index] = seg_dataset[index][: args.seq_length]
-                        while len(src_dataset[index]) < args.seq_length:
-                            src_dataset[index].append(0)
-                            seg_dataset[index].append(0)
-                else:
-                    logger.debug(f"BBBB {text_a_list} BBBBBBBBBBBBB {path}")
-                # src_dataset,seg_dataset [5 x 128] -> src,seg [640]
-                # src = [data for data_list in src_dataset for data in data_list]
-                # seg = [data for data_list in seg_dataset for data in data_list]
-                src = src_dataset  # src [5]
-                seg = seg_dataset
-
-                if args.soft_targets and "logits" in columns.keys():
-                    dataset.append((src, tgt, seg, soft_tgt))
-                else:
-                    dataset.append((src, tgt, seg))
-        except Exception as e:
-            logger.error(path)
-            logger.error(e)
-
-    return dataset
-
-
 def train_model(
     args,
     model,
@@ -263,7 +221,7 @@ def train_model(
     if soft_tgt_batch is not None:
         soft_tgt_batch = soft_tgt_batch.to(args.device)
 
-    loss, _ = model(src_batch, tgt_batch, seg_batch, soft_tgt_batch)
+    loss, _ = model(src_batch, seg_batch, tgt_batch, soft_tgt_batch)
     if args.multi_gpu:
         loss = torch.mean(loss)
 
@@ -279,27 +237,29 @@ def train_model(
     return loss
 
 
-def evaluate(args, dataset, print_confusion_matrix=False):
-    src = torch.LongTensor([sample[0] for sample in dataset])
-    tgt = torch.LongTensor([sample[1] for sample in dataset])
-    seg = torch.LongTensor([sample[2] for sample in dataset])
-
+def evaluate(args, model, dev_loader, print_confusion_matrix=False):
     batch_size = args.batch_size
 
     correct = 0
     # Confusion matrix.
     confusion = torch.zeros(args.labels_num, args.labels_num, dtype=torch.long)
 
-    args.model.eval()
+    model.eval()
 
-    for i, (src_batch, tgt_batch, seg_batch, _) in enumerate(
-        batch_loader(batch_size, src, tgt, seg)
-    ):
+    for i, batch in enumerate(iter(dev_loader)):
+        if args.soft_targets:
+            src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
+        else:
+            src_batch, seg_batch, tgt_batch = batch
+            soft_tgt_batch = None
+
         src_batch = src_batch.to(args.device)
-        tgt_batch = tgt_batch.to(args.device)
         seg_batch = seg_batch.to(args.device)
+        tgt_batch = tgt_batch.to(args.device)
+
         with torch.no_grad():
-            _, logits = args.model(src_batch, tgt_batch, seg_batch)
+            _, logits = model(src_batch, seg_batch, tgt_batch)
+
         pred = torch.argmax(nn.Softmax(dim=1)(logits), dim=1)
         gold = tgt_batch
         for j in range(pred.size()[0]):
@@ -349,13 +309,15 @@ def main():
     parser.add_argument(
         "--soft_targets", action="store_true", help="Train model with logits."
     )
-    
+
     parser.add_argument(
         "--soft_alpha", type=float, default=0.5, help="Weight of the soft targets loss."
     )
-    
+
+    parser.add_argument("--multi_gpu", action="store_true", help="Using multi GPU")
+
     parser.add_argument(
-        "--multi_gpu", action="store_true", help="Using multi GPU"
+        "--num_worker", type=int, default=1, help="Number of dataloader worker."
     )
 
     args = parser.parse_args()
@@ -380,24 +342,29 @@ def main():
     model = model.to(args.device)
 
     # Training phase.
-    trainset = read_dataset(args, args.train_path)
+    train_dataset = ETTrainDataset(args, args.train_path)
+    dev_dataset = ETTrainDataset(args, args.dev_path)
 
-    random.shuffle(trainset)
-    instances_num = len(trainset)
-    batch_size = args.batch_size
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_worker,
+        pin_memory=True,
+    )
 
-    src = torch.LongTensor([example[0] for example in trainset])
-    tgt = torch.LongTensor([example[1] for example in trainset])
-    seg = torch.LongTensor([example[2] for example in trainset])
+    dev_loader = DataLoader(
+        dev_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_worker,
+        pin_memory=True,
+    )
 
-    if args.soft_targets:
-        soft_tgt = torch.FloatTensor([example[3] for example in trainset])
-    else:
-        soft_tgt = None
+    instances_num = len(train_dataset.dataset)
+    args.train_steps = int(instances_num * args.epochs_num / args.batch_size) + 1
 
-    args.train_steps = int(instances_num * args.epochs_num / batch_size) + 1
-
-    logger.info(f"Batch size: {batch_size}")
+    logger.info(f"Batch size: {args.batch_size}")
     logger.info(f"The number of training instances: {instances_num}")
 
     optimizer, scheduler = build_optimizer(args, model)
@@ -425,9 +392,14 @@ def main():
 
     for epoch in range(1, args.epochs_num + 1):
         model.train()
-        for i, (src_batch, tgt_batch, seg_batch, soft_tgt_batch) in enumerate(
-            batch_loader(batch_size, src, tgt, seg, soft_tgt)
-        ):
+
+        for i, batch in enumerate(iter(train_loader)):
+            if args.soft_targets:
+                src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
+            else:
+                src_batch, seg_batch, tgt_batch = batch
+                soft_tgt_batch = None
+
             loss = train_model(
                 args,
                 model,
@@ -445,7 +417,7 @@ def main():
                 )
                 total_loss = 0.0
 
-        result = evaluate(args, read_dataset(args, args.dev_path))
+        result = evaluate(args, model, dev_loader)
         if result[0] > best_result:
             best_result = result[0]
             save_model(model, args.output_model_path)
@@ -459,7 +431,8 @@ def main():
             )
         else:
             model.load_state_dict(torch.load(args.output_model_path))
-        evaluate(args, read_dataset(args, args.test_path), True)
+        evaluate(args, model, dev_loader, True)
+
 
 def get_logger(level=logging.INFO):
     LOG_FORMAT = "[%(asctime)-10s] (line: %(lineno)d) %(levelname)s - %(message)s"
@@ -467,6 +440,7 @@ def get_logger(level=logging.INFO):
     logger = logging.getLogger(__name__)
     logger.setLevel(level)
     return logger
+
 
 if __name__ == "__main__":
     logger = get_logger()
