@@ -57,7 +57,7 @@ def preprocess(pcap_dir, word_output_file):
                     word_packet = p.copy()
                     words = binascii.hexlify(bytes(word_packet))
 
-                    words_string = words.decode()[68:]  # 헤더 부분 제거
+                    words_string = words.decode()[76:]  # 헤더 부분 제거
                     length = len(words_string)
                     if length < 10:
                         continue
