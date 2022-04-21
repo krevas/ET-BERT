@@ -36,15 +36,14 @@ class Classifier(nn.Module):
         # Embedding.
         emb_data = self.embedding(src, seg)
         # Encoder.
-        output = torch.Tensor(0)
-        for each_batch_size in range(emb_data.size(0)):
+        for idx, each_batch_size in enumerate(range(emb_data.size(0))):
             emb = emb_data[each_batch_size]
             seg_data = seg[each_batch_size]
             output_emb = self.encoder(emb, seg_data)
             output_data = output_emb[:, :1, :]
             ### delete dim of seq_length, expand dim of batch
             cls_output = output_data.squeeze(1).unsqueeze(0)
-            if output.size(0) == 0:
+            if idx == 0:
                 output = cls_output
             else:
                 output = torch.cat((output, cls_output), 0)
@@ -271,18 +270,27 @@ def evaluate(args, model, dev_loader, print_confusion_matrix=False):
         logger.info(confusion)
         logger.info("Report precision, recall, and f1:")
         for i in range(confusion.size()[0]):
-            p = confusion[i, i].item() / confusion[i, :].sum().item()
-            r = confusion[i, i].item() / confusion[:, i].sum().item()
-            f1 = 2 * p * r / (p + r)
-            logger.info(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
+            try:
+                p = confusion[i, i].item() / confusion[i, :].sum().item()
+                r = confusion[i, i].item() / confusion[:, i].sum().item()
+                f1 = 2 * p * r / (p + r)
+                logger.info(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
+            except:
+                logger.info(f"Label {i}: 0, 0, 0")
 
     logger.info(
         f"Acc. (Correct/Total): {(correct / len(dev_loader.dataset)):.4f} ({correct}/{len(dev_loader.dataset)}) "
     )
     return correct / len(dev_loader.dataset), confusion
 
+def set_seed(seed=0):
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
 def main():
+    set_seed()
+    
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
