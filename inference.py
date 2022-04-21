@@ -65,6 +65,13 @@ class ETInferDataset(Dataset):
 
 
 def to_numpy(tensor):
+    """
+    If the tensor requires gradients, then detach it from the computation graph, move it to the CPU, and
+    convert it to a NumPy array. Otherwise, just move it to the CPU and convert it to a NumPy array
+    
+    :param tensor: A PyTorch tensor
+    :return: the tensor as a numpy array.
+    """
     return (
         tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
     )

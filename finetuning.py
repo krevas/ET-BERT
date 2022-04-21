@@ -1,7 +1,6 @@
 """
 This script provides an exmaple to wrap UER-py for classification.
 """
-import random
 import argparse
 import logging
 
@@ -134,6 +133,13 @@ def to_numpy(tensor):
 
 
 def count_labels_num(path):
+    """
+    It reads the first line of the file and stores the column names in a dictionary, then it reads the
+    rest of the file and stores the labels in a set
+    
+    :param path: the path of the data file
+    :return: The number of unique labels in the dataset.
+    """
     labels_set, columns = set(), {}
     with open(path, mode="r", encoding="utf-8") as f:
         for line_id, line in enumerate(f):
@@ -148,6 +154,13 @@ def count_labels_num(path):
 
 
 def load_or_initialize_parameters(args, model):
+    """
+    If the user has specified a pretrained model, load it. Otherwise, initialize the model with normal
+    distribution.
+    
+    :param args: the arguments that were passed to the script
+    :param model: the model we're training
+    """
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
@@ -237,8 +250,6 @@ def train_model(
 
 
 def evaluate(args, model, dev_loader, print_confusion_matrix=False):
-    batch_size = args.batch_size
-
     correct = 0
     # Confusion matrix.
     confusion = torch.zeros(args.labels_num, args.labels_num, dtype=torch.long)
@@ -247,10 +258,9 @@ def evaluate(args, model, dev_loader, print_confusion_matrix=False):
 
     for i, batch in enumerate(iter(dev_loader)):
         if args.soft_targets:
-            src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
+            src_batch, seg_batch, tgt_batch, _ = batch
         else:
             src_batch, seg_batch, tgt_batch = batch
-            soft_tgt_batch = None
 
         src_batch = src_batch.to(args.device)
         seg_batch = seg_batch.to(args.device)
