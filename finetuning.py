@@ -277,9 +277,9 @@ def evaluate(args, model, dev_loader, print_confusion_matrix=False):
             logger.info(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
 
     logger.info(
-        f"Acc. (Correct/Total): {(correct / len(dataset)):.4f} ({correct}/{len(dataset)}) "
+        f"Acc. (Correct/Total): {(correct / len(dev_loader.dataset)):.4f} ({correct}/{len(dev_loader.dataset)}) "
     )
-    return correct / len(dataset), confusion
+    return correct / len(dev_loader.dataset), confusion
 
 
 def main():
