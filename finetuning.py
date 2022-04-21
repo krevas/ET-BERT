@@ -283,14 +283,9 @@ def evaluate(args, model, dev_loader, print_confusion_matrix=False):
     )
     return correct / len(dev_loader.dataset), confusion
 
-def set_seed(seed=0):
-    torch.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.manual_seed_all(seed)
 
 def main():
-    set_seed()
-    
+
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
