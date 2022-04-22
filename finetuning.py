@@ -7,6 +7,7 @@ import logging
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
+from torchmetrics import Accuracy, F1Score, ConfusionMatrix
 
 from uer.layers import *
 from uer.encoders import *
@@ -250,9 +251,10 @@ def train_model(
 
 
 def evaluate(args, model, dev_loader, print_confusion_matrix=False):
-    correct = 0
-    # Confusion matrix.
-    confusion = torch.zeros(args.labels_num, args.labels_num, dtype=torch.long)
+    accuracy = Accuracy().to(args.device)
+    f1 = F1Score(num_classes=args.labels_num, average='micro').to(args.device)
+    if print_confusion_matrix:
+        confusion = ConfusionMatrix(num_classes=args.labels_num).to(args.device)
 
     model.eval()
 
@@ -271,27 +273,20 @@ def evaluate(args, model, dev_loader, print_confusion_matrix=False):
 
         pred = torch.argmax(nn.Softmax(dim=1)(logits), dim=1)
         gold = tgt_batch
-        for j in range(pred.size()[0]):
-            confusion[pred[j], gold[j]] += 1
-        correct += torch.sum(pred == gold).item()
+
+        accuracy.update(pred, gold)
+        f1.update(pred, gold)
+        if print_confusion_matrix:
+            confusion.update(pred, gold)
+
+    acc = accuracy.compute()
+    f1 = f1.compute()
+    logger.info(f"F1 : {f1}:::::Accuracy : {acc}")
 
     if print_confusion_matrix:
-        logger.info("Confusion matrix:")
-        logger.info(confusion)
-        logger.info("Report precision, recall, and f1:")
-        for i in range(confusion.size()[0]):
-            try:
-                p = confusion[i, i].item() / confusion[i, :].sum().item()
-                r = confusion[i, i].item() / confusion[:, i].sum().item()
-                f1 = 2 * p * r / (p + r)
-                logger.info(f"Label {i}: {p:.3f}, {r:.3f}, {f1:.3f}")
-            except:
-                logger.info(f"Label {i}: 0, 0, 0")
+        logger.info(f"Confusion : {confusion.compute()}")
 
-    logger.info(
-        f"Acc. (Correct/Total): {(correct / len(dev_loader.dataset)):.4f} ({correct}/{len(dev_loader.dataset)}) "
-    )
-    return correct / len(dev_loader.dataset), confusion
+    return acc.item()
 
 
 def main():
@@ -431,8 +426,8 @@ def main():
                 total_loss = 0.0
 
         result = evaluate(args, model, dev_loader)
-        if result[0] > best_result:
-            best_result = result[0]
+        if result > best_result:
+            best_result = result
             save_model(model, args.output_model_path)
 
     # Evaluation phase.
