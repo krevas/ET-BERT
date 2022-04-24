@@ -23,16 +23,14 @@ class TransformerEncoder(nn.Module):
 
         self.margin_V = torch.nn.Parameter(torch.ones(args.emb_size))
 
-        has_bias = bool(1 - args.remove_transformer_bias)
-
         if self.factorized_embedding_parameterization:
-            self.linear = nn.Linear(args.emb_size, args.hidden_size).to(args.device)
+            self.linear = nn.Linear(args.emb_size, args.hidden_size)
 
         if self.parameter_sharing:
-            self.transformer = TransformerLayer(args).to(args.device)
+            self.transformer = TransformerLayer(args)
         else:
             self.transformer = nn.ModuleList(
-                [TransformerLayer(args).to(args.device) for _ in range(self.layers_num)]
+                [TransformerLayer(args) for _ in range(self.layers_num)]
             )
         if self.layernorm_positioning == "pre":
             if args.layernorm == "t5":
@@ -66,7 +64,7 @@ class TransformerEncoder(nn.Module):
             mask = mask.float()
             mask = (1.0 - mask) * -10000.0
         elif self.mask == "causal":
-            mask = torch.ones(seq_length, seq_length, device=emb.device)
+            mask = torch.ones(seq_length, seq_length)
             mask = torch.tril(mask)
             mask = (1.0 - mask) * -10000
             mask = mask.repeat(batch_size, 1, 1, 1)
@@ -79,7 +77,7 @@ class TransformerEncoder(nn.Module):
                 (seg > 0).unsqueeze(1).repeat(1, seq_length, 1).unsqueeze(1).float()
             )
 
-            mask_tril = torch.ones(seq_length, seq_length, device=emb.device)
+            mask_tril = torch.ones(seq_length, seq_length)
             mask_tril = torch.tril(mask_tril)
             mask_tril = mask_tril.repeat(batch_size, 1, 1, 1)
 

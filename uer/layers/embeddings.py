@@ -43,7 +43,7 @@ class WordPosEmbedding(nn.Module):
     def forward(self, src, _):
         word_emb = self.word_embedding(src)
         pos_emb = self.position_embedding(
-            torch.arange(0, word_emb.size(1), device=word_emb.device, dtype=torch.long)
+            torch.arange(0, word_emb.size(1), dtype=torch.long)
             .unsqueeze(0)
             .repeat(word_emb.size(0), 1)
         )
@@ -66,16 +66,16 @@ class WordPosSegEmbedding(nn.Module):
         self.remove_embedding_layernorm = args.remove_embedding_layernorm
         self.dropout = nn.Dropout(args.dropout)
         self.max_seq_length = args.max_seq_length
-        self.word_embedding = nn.Embedding(vocab_size, args.emb_size).to(args.device)
-        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size).to(args.device)
-        self.segment_embedding = nn.Embedding(3, args.emb_size).to(args.device)
+        self.word_embedding = nn.Embedding(vocab_size, args.emb_size)
+        self.position_embedding = nn.Embedding(self.max_seq_length, args.emb_size)
+        self.segment_embedding = nn.Embedding(3, args.emb_size)
         if not self.remove_embedding_layernorm:
             self.layer_norm = LayerNorm(args.emb_size)
 
     def forward(self, src, seg):
         word_emb = self.word_embedding(src)
         pos_emb = self.position_embedding(
-            torch.arange(0, word_emb.size(2), device=word_emb.device, dtype=torch.long)
+            torch.arange(0, word_emb.size(2), dtype=torch.long, device=src.device)
             .unsqueeze(0)
             .repeat(word_emb.size(1), 1)
             .unsqueeze(0)

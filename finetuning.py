@@ -8,6 +8,8 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, Dataset
 from torchmetrics import Accuracy, F1Score, ConfusionMatrix
+from pytorch_lightning import seed_everything
+from pytorch_lightning.lite import LightningLite
 
 from uer.layers import *
 from uer.encoders import *
@@ -16,7 +18,6 @@ from uer.utils import *
 from uer.utils.optimizers import *
 from uer.utils.config import load_hyperparam
 from uer.utils.seed import set_seed
-from uer.model_saver import save_model
 from uer.opts import finetune_opts
 
 
@@ -127,12 +128,6 @@ class ETTrainDataset(Dataset):
         return self.dataset[index]
 
 
-def to_numpy(tensor):
-    return (
-        tensor.detach().cpu().numpy() if tensor.requires_grad else tensor.cpu().numpy()
-    )
-
-
 def count_labels_num(path):
     """
     It reads the first line of the file and stores the column names in a dictionary, then it reads the
@@ -165,7 +160,7 @@ def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
-            torch.load(args.pretrained_model_path, map_location=args.device),
+            torch.load(args.pretrained_model_path),
             strict=False,
         )
     else:
@@ -216,81 +211,109 @@ def build_optimizer(args, model):
     return optimizer, scheduler
 
 
-def train_model(
-    args,
-    model,
-    optimizer,
-    scheduler,
-    src_batch,
-    tgt_batch,
-    seg_batch,
-    soft_tgt_batch=None,
-):
-    model.zero_grad()
-
-    src_batch = src_batch.to(args.device)
-    tgt_batch = tgt_batch.to(args.device)
-    seg_batch = seg_batch.to(args.device)
-    if soft_tgt_batch is not None:
-        soft_tgt_batch = soft_tgt_batch.to(args.device)
-
-    loss, _ = model(src_batch, seg_batch, tgt_batch, soft_tgt_batch)
-    if args.multi_gpu:
-        loss = torch.mean(loss)
-
-    if args.fp16:
-        with args.amp.scale_loss(loss, optimizer) as scaled_loss:
-            scaled_loss.backward()
-    else:
-        loss.backward()
-
-    optimizer.step()
-    scheduler.step()
-
-    return loss
 
 
-def evaluate(args, model, dev_loader, print_confusion_matrix=False):
-    accuracy = Accuracy().to(args.device)
-    f1 = F1Score(num_classes=args.labels_num, average='micro').to(args.device)
-    if print_confusion_matrix:
-        confusion = ConfusionMatrix(num_classes=args.labels_num).to(args.device)
+class Lite(LightningLite):
+    def run(self, args):
+        seed_everything(args.seed)
+        
+        model = Classifier(args)
+        load_or_initialize_parameters(args, model)
+        
+        train_dataset = ETTrainDataset(args, args.train_path)
+        test_dataset = ETTrainDataset(args, args.test_path)
+        
+        instances_num = len(train_dataset.dataset)
+        args.train_steps = int(instances_num * args.epochs_num / args.batch_size) + 1
+        
+        optimizer, scheduler = build_optimizer(args, model)
+        model, optimizer = self.setup(model, optimizer)
+        
+        train_loader = DataLoader(
+            train_dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            pin_memory=True,
+        )
+        
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            pin_memory=True,
+        )
+        
+        train_data, test_data = self.setup_dataloaders(train_loader, test_loader)
+        
+        test_acc = Accuracy().to(self.device)
+        test_f1 = F1Score(num_classes=args.labels_num, average='micro').to(self.device)
+        
+        for epoch in range(args.epochs_num):
+            # TRAINING LOOP
+            model.train()
+            for batch_idx, batch in enumerate(train_data):
+                if args.soft_targets:
+                        src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
+                        soft_tgt_batch.to(args.device)
+                else:
+                    src_batch, seg_batch, tgt_batch = batch
+                    soft_tgt_batch = None
+                
+                optimizer.zero_grad()
 
-    model.eval()
+                loss, _ = model(src_batch, seg_batch, tgt_batch, soft_tgt_batch)
 
-    for i, batch in enumerate(iter(dev_loader)):
-        if args.soft_targets:
-            src_batch, seg_batch, tgt_batch, _ = batch
-        else:
-            src_batch, seg_batch, tgt_batch = batch
+                self.backward(loss)
 
-        src_batch = src_batch.to(args.device)
-        seg_batch = seg_batch.to(args.device)
-        tgt_batch = tgt_batch.to(args.device)
+                optimizer.step()
+                if (batch_idx == 0) or ((batch_idx + 1) % (args.report_steps//args.gpus) == 0):
+                    logger.info(
+                        "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
+                            epoch,
+                            batch_idx * len(src_batch),
+                            len(train_loader.dataset)//args.gpus,
+                            100.0 * batch_idx / (len(train_loader)//args.gpus),
+                            loss.item(),
+                        )
+                    )
+                    
+                scheduler.step()
+                
+            # TESTING LOOP
+            model.eval()
+            test_loss = 0
+            with torch.no_grad():
+                for batch in test_data:
+                    if args.soft_targets:
+                        src_batch, seg_batch, tgt_batch, _ = batch
+                    else:
+                        src_batch, seg_batch, tgt_batch = batch
 
-        with torch.no_grad():
-            _, logits = model(src_batch, seg_batch, tgt_batch)
+                    loss, logits = model(src_batch, seg_batch, tgt_batch)
+                    test_loss += loss
 
-        pred = torch.argmax(nn.Softmax(dim=1)(logits), dim=1)
-        gold = tgt_batch
+                    pred = torch.argmax(nn.Softmax(dim=1)(logits), dim=1)
+                    gold = tgt_batch
+                    
+                    test_acc.update(pred, gold)
+                    test_f1.update(pred, gold)
 
-        accuracy.update(pred, gold)
-        f1.update(pred, gold)
-        if print_confusion_matrix:
-            confusion.update(pred, gold)
+            # all_gather is used to aggregated the value across processes
+            test_loss = self.all_gather(test_loss).sum() / len(test_loader.dataset)
 
-    acc = accuracy.compute()
-    f1 = f1.compute()
-    logger.info(f"F1 : {f1}:::::Accuracy : {acc}")
+            logger.info(f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: ({100 * test_acc.compute():.0f}%), F1: ({100 * test_f1.compute():.0f}%)\n")
+            test_acc.reset()
+            test_f1.reset()
 
-    if print_confusion_matrix:
-        logger.info(f"Confusion : {confusion.compute()}")
-
-    return acc.item()
-
+        logger.info("Finished training...")
+        if args.output_model_path:
+            self.save(model.state_dict(), args.output_model_path)
+            logger.info(f"Save trained model: {args.output_model_path}")
+        
+       
+    
 
 def main():
-
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -321,18 +344,18 @@ def main():
     parser.add_argument(
         "--soft_alpha", type=float, default=0.5, help="Weight of the soft targets loss."
     )
-
-    parser.add_argument("--multi_gpu", action="store_true", help="Using multi GPU")
-
+    
     parser.add_argument(
-        "--num_worker", type=int, default=1, help="Number of dataloader worker."
+        "--gpus", type=int, default=2, help="Number of gpus."
     )
 
     args = parser.parse_args()
 
     # Load the hyperparameters from the config file.
     args = load_hyperparam(args)
-    args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    torch.multiprocessing.set_start_method('spawn')
 
     set_seed(args.seed)
 
@@ -342,104 +365,10 @@ def main():
     # Build tokenizer.
     args.tokenizer = str2tokenizer[args.tokenizer](args)
 
-    # Build classification model.
-    model = Classifier(args)
-
-    # Load or initialize parameters.
-    load_or_initialize_parameters(args, model)
-    model = model.to(args.device)
-
     # Training phase.
-    train_dataset = ETTrainDataset(args, args.train_path)
-    dev_dataset = ETTrainDataset(args, args.dev_path)
-
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        num_workers=args.num_worker,
-        pin_memory=True,
-    )
-
-    dev_loader = DataLoader(
-        dev_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        num_workers=args.num_worker,
-        pin_memory=True,
-    )
-
-    instances_num = len(train_dataset.dataset)
-    args.train_steps = int(instances_num * args.epochs_num / args.batch_size) + 1
-
-    logger.info(f"Batch size: {args.batch_size}")
-    logger.info(f"The number of training instances: {instances_num}")
-
-    optimizer, scheduler = build_optimizer(args, model)
-
-    if args.fp16:
-        try:
-            from apex import amp
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
-            )
-        model, optimizer = amp.initialize(
-            model, optimizer, opt_level=args.fp16_opt_level
-        )
-        args.amp = amp
-
-    if args.multi_gpu:
-        logger.info(f"{torch.cuda.device_count()} GPUs are available. Let's use them.")
-        model = torch.nn.DataParallel(model)
-    args.model = model
-
-    total_loss, result, best_result = 0.0, 0.0, 0.0
-
     logger.info("Start training.")
-
-    for epoch in range(1, args.epochs_num + 1):
-        model.train()
-
-        for i, batch in enumerate(iter(train_loader)):
-            if args.soft_targets:
-                src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
-            else:
-                src_batch, seg_batch, tgt_batch = batch
-                soft_tgt_batch = None
-
-            loss = train_model(
-                args,
-                model,
-                optimizer,
-                scheduler,
-                src_batch,
-                tgt_batch,
-                seg_batch,
-                soft_tgt_batch,
-            )
-            total_loss += loss.item()
-            if (i + 1) % args.report_steps == 0:
-                logger.info(
-                    f"Epoch id: {epoch}, Training steps: {i + 1}, Avg loss: {(total_loss / args.report_steps):.3f}"
-                )
-                total_loss = 0.0
-
-        result = evaluate(args, model, dev_loader)
-        if result > best_result:
-            best_result = result
-            save_model(model, args.output_model_path)
-
-    # Evaluation phase.
-    if args.test_path is not None:
-        logger.info("Test set evaluation.")
-        if args.multi_gpu:
-            model.module.load_state_dict(
-                torch.load(args.output_model_path, map_location=args.device)
-            )
-        else:
-            model.load_state_dict(torch.load(args.output_model_path))
-        evaluate(args, model, dev_loader, True)
+    
+    Lite(strategy="ddp", accelerator='gpu', devices=args.gpus).run(args) 
 
 
 def get_logger(level=logging.INFO):

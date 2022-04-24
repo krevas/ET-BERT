@@ -5,3 +5,5 @@ packaging
 scapy
 flowcontainer
 tokenizers
+pytorch-lightning
+torchmetrics>=0.8.0
