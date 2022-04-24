@@ -160,8 +160,7 @@ def load_or_initialize_parameters(args, model):
     if args.pretrained_model_path is not None:
         # Initialize with pretrained model.
         model.load_state_dict(
-            torch.load(args.pretrained_model_path),
-            strict=False,
+            torch.load(args.pretrained_model_path), strict=False,
         )
     else:
         # Initialize with normal distribution.
@@ -211,54 +210,46 @@ def build_optimizer(args, model):
     return optimizer, scheduler
 
 
-
-
 class Lite(LightningLite):
     def run(self, args):
         seed_everything(args.seed)
-        
+
         model = Classifier(args)
         load_or_initialize_parameters(args, model)
-        
+
         train_dataset = ETTrainDataset(args, args.train_path)
         test_dataset = ETTrainDataset(args, args.test_path)
-        
+
         instances_num = len(train_dataset.dataset)
         args.train_steps = int(instances_num * args.epochs_num / args.batch_size) + 1
-        
+
         optimizer, scheduler = build_optimizer(args, model)
         model, optimizer = self.setup(model, optimizer)
-        
+
         train_loader = DataLoader(
-            train_dataset,
-            batch_size=args.batch_size,
-            shuffle=True,
-            pin_memory=True,
+            train_dataset, batch_size=args.batch_size, shuffle=True, pin_memory=True,
         )
-        
+
         test_loader = DataLoader(
-            test_dataset,
-            batch_size=args.batch_size,
-            shuffle=False,
-            pin_memory=True,
+            test_dataset, batch_size=args.batch_size, shuffle=False, pin_memory=True,
         )
-        
+
         train_data, test_data = self.setup_dataloaders(train_loader, test_loader)
-        
+
         test_acc = Accuracy().to(self.device)
-        test_f1 = F1Score(num_classes=args.labels_num, average='micro').to(self.device)
-        
+        test_f1 = F1Score(num_classes=args.labels_num, average="micro").to(self.device)
+
         for epoch in range(args.epochs_num):
             # TRAINING LOOP
             model.train()
             for batch_idx, batch in enumerate(train_data):
                 if args.soft_targets:
-                        src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
-                        soft_tgt_batch.to(args.device)
+                    src_batch, seg_batch, tgt_batch, soft_tgt_batch = batch
+                    soft_tgt_batch.to(args.device)
                 else:
                     src_batch, seg_batch, tgt_batch = batch
                     soft_tgt_batch = None
-                
+
                 optimizer.zero_grad()
 
                 loss, _ = model(src_batch, seg_batch, tgt_batch, soft_tgt_batch)
@@ -266,19 +257,21 @@ class Lite(LightningLite):
                 self.backward(loss)
 
                 optimizer.step()
-                if (batch_idx == 0) or ((batch_idx + 1) % (args.report_steps//args.gpus) == 0):
+                if (batch_idx == 0) or (
+                    (batch_idx + 1) % (args.report_steps // args.gpus) == 0
+                ):
                     logger.info(
                         "Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}".format(
                             epoch,
                             batch_idx * len(src_batch),
-                            len(train_loader.dataset)//args.gpus,
-                            100.0 * batch_idx / (len(train_loader)//args.gpus),
+                            len(train_loader.dataset) // args.gpus,
+                            100.0 * batch_idx / (len(train_loader) // args.gpus),
                             loss.item(),
                         )
                     )
-                    
+
                 scheduler.step()
-                
+
             # TESTING LOOP
             model.eval()
             test_loss = 0
@@ -294,14 +287,16 @@ class Lite(LightningLite):
 
                     pred = torch.argmax(nn.Softmax(dim=1)(logits), dim=1)
                     gold = tgt_batch
-                    
+
                     test_acc.update(pred, gold)
                     test_f1.update(pred, gold)
 
             # all_gather is used to aggregated the value across processes
             test_loss = self.all_gather(test_loss).sum() / len(test_loader.dataset)
 
-            logger.info(f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: ({100 * test_acc.compute():.0f}%), F1: ({100 * test_f1.compute():.0f}%)\n")
+            logger.info(
+                f"\nTest set: Average loss: {test_loss:.4f}, Accuracy: ({100 * test_acc.compute():.0f}%), F1: ({100 * test_f1.compute():.0f}%)\n"
+            )
             test_acc.reset()
             test_f1.reset()
 
@@ -309,9 +304,7 @@ class Lite(LightningLite):
         if args.output_model_path:
             self.save(model.state_dict(), args.output_model_path)
             logger.info(f"Save trained model: {args.output_model_path}")
-        
-       
-    
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -344,18 +337,16 @@ def main():
     parser.add_argument(
         "--soft_alpha", type=float, default=0.5, help="Weight of the soft targets loss."
     )
-    
-    parser.add_argument(
-        "--gpus", type=int, default=2, help="Number of gpus."
-    )
+
+    parser.add_argument("--gpus", type=int, default=2, help="Number of gpus.")
 
     args = parser.parse_args()
 
     # Load the hyperparameters from the config file.
     args = load_hyperparam(args)
     args.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
-    torch.multiprocessing.set_start_method('spawn')
+
+    torch.multiprocessing.set_start_method("spawn")
 
     set_seed(args.seed)
 
@@ -367,8 +358,8 @@ def main():
 
     # Training phase.
     logger.info("Start training.")
-    
-    Lite(strategy="ddp", accelerator='gpu', devices=args.gpus).run(args) 
+
+    Lite(strategy="ddp", accelerator="gpu", devices=args.gpus).run(args)
 
 
 def get_logger(level=logging.INFO):
