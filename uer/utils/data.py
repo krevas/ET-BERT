@@ -1,7 +1,7 @@
 import os
 import random
 import pickle
-from multiprocessing import Pool, Process
+from multiprocessing import Process
 
 import torch
 
@@ -323,7 +323,7 @@ class BertDataset(Dataset):
         self.short_seq_prob = args.short_seq_prob
 
     def worker(self, proc_id, start, end):
-        print("BERT Worker %d is building dataset ... " % proc_id)
+        print("Worker %d is building dataset ... " % proc_id)
         set_seed(self.seed)
         docs_buffer = []
         document = []
@@ -399,15 +399,7 @@ class BertDataset(Dataset):
                     tokens_b = []
                     is_random_next = 0
 
-                    ###
-                    is_tov = 0
-                    random_num = random.random()
-                    ###
-                    # if len(current_chunk) == 1:
-                    #     print(len(document))
-                    #     print(1)
-
-                    if len(current_chunk) == 1 or random_num < 0.3:
+                    if len(current_chunk) == 1 or random.random() < 0.5:
                         is_random_next = 1
                         target_b_length = target_seq_length - len(tokens_a)
 
@@ -425,83 +417,13 @@ class BertDataset(Dataset):
                             if len(tokens_b) >= target_b_length:
                                 break
 
-                        # num_unused_segments = len(current_chunk) - a_end
-                        # i -= num_unused_segments
-                        # print("RANDOM --")
-                    elif len(current_chunk) > 1 and random_num > 0.7:
-                        is_tov = 1
+                        num_unused_segments = len(current_chunk) - a_end
+                        i -= num_unused_segments
 
-                        for j in range(a_end, len(current_chunk)):
-                            tokens_b.extend(current_chunk[j])
-
-                        tov_num = range(0, len(tokens_b))
-                        try:
-                            random_tov = random.sample(tov_num, 20)
-                            for i in range(0, 20, 2):
-                                tokens_b[random_tov[i]], tokens_b[random_tov[i + 1]] = (
-                                    tokens_b[random_tov[i + 1]],
-                                    tokens_b[random_tov[i]],
-                                )
-                        except:
-                            pass
-
-                        # num_unused_segments = len(current_chunk) - a_end
-                        # i -= num_unused_segments
-                        # print("RANDOM ++--")
                     else:
+                        is_random_next = 0
                         for j in range(a_end, len(current_chunk)):
                             tokens_b.extend(current_chunk[j])
-                        # print("RANDOM ++")
-                        # if random_num > 1:
-                        #    print("NORMAL +--")
-                        #    num_unused_segments = len(current_chunk) - a_end
-                        #    i -= num_unused_segments
-
-                        """
-                        ### add tov
-                        if random_num > 0.75:
-                            print("NORMAL +--")
-                            is_tov = 1
-
-                            document_length = len(tokens_a) + len(tokens_b)
-
-                            tov_num = range(0, document_length)
-                            random_tov = random.sample(tov_num, 20)
-
-                            #print("Source tokens_a: ",tokens_a,"\ntokens_b: ",tokens_b)
-                            #print("tov index:",random_tov)
-                            temp_token = 0
-                            for i in range(20):
-                                if random_tov[i] < len(tokens_a):
-                                    if temp_token == 0:
-                                        temp_token = tokens_a[random_tov[i]]
-                                    else:
-                                        if random_tov[i - 1] < len(tokens_a):
-                                            tokens_a[random_tov[i - 1]] = tokens_a[random_tov[i]]
-                                            tokens_a[random_tov[i]] = temp_token
-                                        else:
-                                            tokens_b[random_tov[i - 1] - len(tokens_a)] = tokens_a[random_tov[i]]
-                                            tokens_a[random_tov[i]] = temp_token
-                                        temp_token = 0
-                                else:
-                                    i_b = random_tov[i] - len(tokens_a)
-                                    if temp_token == 0:
-                                        temp_token = tokens_b[i_b]
-                                    else:
-                                        if random_tov[i - 1] < len(tokens_a):
-                                            tokens_a[random_tov[i - 1]] = tokens_b[i_b]
-                                            tokens_b[i_b] = temp_token
-                                        else:
-                                            tokens_b[random_tov[i - 1] - len(tokens_a)] = tokens_b[i_b]
-                                            tokens_b[i_b] = temp_token
-                                        temp_token = 0
-                            #print("\n TOV-",str(i),"\t",random_tov[i],"\ntokens_a: ", tokens_a, "\ntokens_b: ", tokens_b)
-
-                            num_unused_segments = len(current_chunk) - a_end
-                            i -= num_unused_segments
-                        else:
-                            print("NORMAL ++")
-                        """
 
                     truncate_seq_pair(tokens_a, tokens_b, max_num_tokens)
 
@@ -526,9 +448,9 @@ class BertDataset(Dataset):
                             self.span_geo_prob,
                             self.span_max_length,
                         )
-                        instance = (src, tgt_mlm, is_random_next, seg_pos, is_tov)
+                        instance = (src, tgt_mlm, is_random_next, seg_pos)
                     else:
-                        instance = (src, is_random_next, seg_pos, is_tov)
+                        instance = (src, is_random_next, seg_pos)
 
                     instances.append(instance)
                 current_chunk = []

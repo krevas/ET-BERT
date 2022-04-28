@@ -35,20 +35,9 @@ class Classifier(nn.Module):
 
     def forward(self, src, seg, tgt=None, soft_tgt=None):
         # Embedding.
-        emb_data = self.embedding(src, seg)
+        emb = self.embedding(src, seg)
         # Encoder.
-        for idx, each_batch_size in enumerate(range(emb_data.size(0))):
-            emb = emb_data[each_batch_size]
-            seg_data = seg[each_batch_size]
-            output_emb = self.encoder(emb, seg_data)
-            output_data = output_emb[:, :1, :]
-            ### delete dim of seq_length, expand dim of batch
-            cls_output = output_data.squeeze(1).unsqueeze(0)
-            if idx == 0:
-                output = cls_output
-            else:
-                output = torch.cat((output, cls_output), 0)
-
+        output = self.encoder(emb, seg)
         # Target.
         if self.pooling == "mean":
             output = torch.mean(output, dim=1)
@@ -112,9 +101,6 @@ class ETTrainDataset(Dataset):
 
             src = torch.LongTensor(src)
             seg = torch.LongTensor(seg)
-
-            src = src.view(1, src.size(-1))
-            seg = seg.view(1, seg.size(-1))
 
             if args.soft_targets and "logits" in columns.keys():
                 self.dataset.append((src, seg, tgt, soft_tgt))
