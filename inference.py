@@ -52,9 +52,6 @@ class ETInferDataset(Dataset):
             src = torch.LongTensor(src)
             seg = torch.LongTensor(seg)
 
-            src = src.view(1, src.size(-1))
-            seg = seg.view(1, seg.size(-1))
-
             self.dataset.append((src, seg))
 
     def __len__(self):
