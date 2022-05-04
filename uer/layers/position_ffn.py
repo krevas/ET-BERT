@@ -1,10 +1,8 @@
 import torch.nn as nn
 from uer.utils import *
 
-
 class PositionwiseFeedForward(nn.Module):
     """ Feed Forward Layer. """
-
     def __init__(self, hidden_size, feedforward_size, hidden_act, has_bias=True):
         super(PositionwiseFeedForward, self).__init__()
         self.linear_1 = nn.Linear(hidden_size, feedforward_size, bias=has_bias)
@@ -21,7 +19,6 @@ class GatedFeedForward(nn.Module):
     """ Feed Forward Layer with Gated Linear Unit.
         https://arxiv.org/abs/2002.05202
     """
-
     def __init__(self, hidden_size, feedforward_size, hidden_act, has_bias=True):
         super(GatedFeedForward, self).__init__()
         self.linear_gate = nn.Linear(hidden_size, feedforward_size, bias=has_bias)

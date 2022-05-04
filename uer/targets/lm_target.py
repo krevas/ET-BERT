@@ -4,6 +4,7 @@ import torch.nn as nn
 
 class LmTarget(nn.Module):
     """
+    Language Model Target
     """
 
     def __init__(self, args, vocab_size):
@@ -11,9 +12,7 @@ class LmTarget(nn.Module):
         self.vocab_size = vocab_size
         self.hidden_size = args.hidden_size
 
-        self.output_layer = nn.Linear(
-            self.hidden_size, self.vocab_size, bias=args.has_lmtarget_bias
-        )
+        self.output_layer = nn.Linear(self.hidden_size, self.vocab_size, bias=args.has_lmtarget_bias)
 
         self.softmax = nn.LogSoftmax(dim=-1)
         self.criterion = nn.NLLLoss()
@@ -36,7 +35,7 @@ class LmTarget(nn.Module):
         loss = self.criterion(output, tgt_lm)
         return loss, correct, denominator
 
-    def forward(self, memory_bank, tgt):
+    def forward(self, memory_bank, tgt, seg):
         """
         Args:
             memory_bank: [batch_size x seq_length x hidden_size]
